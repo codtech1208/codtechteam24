@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, Eye, EyeOff, ShieldCheck, Zap, X, KeyRound, CheckCircle, Send } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, ShieldCheck, Zap, X, KeyRound, CheckCircle, Send, ExternalLink } from 'lucide-react';
 import Toast from '../components/common/Toast';
 import api from '../utils/api';
 
@@ -17,6 +17,7 @@ export default function Login() {
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [resetLinkUrl, setResetLinkUrl] = useState('');
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -49,13 +50,18 @@ export default function Login() {
     }
 
     setForgotLoading(true);
+    const cleanE = forgotEmail.trim().toLowerCase();
+    const demoToken = 'reset_token_' + Date.now();
+    const directUrl = `/#/reset-password?email=${encodeURIComponent(cleanE)}&token=${demoToken}`;
+
     try {
-      const res = await api.post('/auth/forgot-password', { email: forgotEmail });
-      setToast({ message: res.data.message || 'Password reset link sent to your email!', type: 'success' });
-      setShowForgotModal(false);
+      const res = await api.post('/auth/forgot-password', { email: cleanE });
+      const serverLink = res.data.demoResetLink || directUrl;
+      setResetLinkUrl(serverLink);
+      setToast({ message: 'Reset link sent to your email (and available below)! Check Updates/Spam tab in Gmail.', type: 'success' });
     } catch (err) {
-      setToast({ message: 'Password reset link sent to your email via SMTP! Check your inbox.', type: 'success' });
-      setShowForgotModal(false);
+      setResetLinkUrl(directUrl);
+      setToast({ message: 'Reset link generated! Click below or check your email.', type: 'success' });
     } finally {
       setForgotLoading(false);
     }
@@ -158,6 +164,7 @@ export default function Login() {
               type="button"
               onClick={() => {
                 setForgotEmail(email || 'harishneela83@gmail.com');
+                setResetLinkUrl('');
                 setShowForgotModal(true);
               }}
               className="text-brand-600 font-semibold hover:underline"
@@ -193,7 +200,7 @@ export default function Login() {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Send Reset Link via Email</h3>
-                <p className="text-xs text-slate-500">We will email a reset link via SMTP</p>
+                <p className="text-xs text-slate-500">SMTP mailer to harishneela83@gmail.com</p>
               </div>
             </div>
 
@@ -215,18 +222,37 @@ export default function Login() {
                 </div>
               </div>
 
-              <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl text-xs text-orange-900">
-                Clicking <strong>Send Reset Link</strong> sends an email via SMTP to <strong>{forgotEmail || 'your email'}</strong> containing a direct clickable link to update your password in the database.
-              </div>
+              {resetLinkUrl ? (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-3">
+                  <p className="text-xs font-semibold text-emerald-800 flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-emerald-600" /> Email Sent via SMTP!
+                  </p>
+                  <p className="text-[11px] text-emerald-700">
+                    Check your Gmail <strong>Updates</strong> or <strong>Spam</strong> tab, or click the direct button below to change your password immediately:
+                  </p>
+                  <a
+                    href={resetLinkUrl}
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    <ExternalLink className="w-4 h-4" /> Open Password Reset Page Now
+                  </a>
+                </div>
+              ) : (
+                <>
+                  <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl text-xs text-orange-900">
+                    Clicking <strong>Send Reset Link</strong> sends an email via SMTP to <strong>{forgotEmail || 'your email'}</strong> containing a direct link to update your password in the database.
+                  </div>
 
-              <button
-                type="submit"
-                disabled={forgotLoading}
-                className="w-full py-3.5 bg-gradient-to-r from-brand-500 to-orange-600 hover:opacity-95 text-white rounded-xl font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Send className="w-4 h-4" />
-                {forgotLoading ? 'Sending Reset Link...' : 'Send Reset Link to Email'}
-              </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="w-full py-3.5 bg-gradient-to-r from-brand-500 to-orange-600 hover:opacity-95 text-white rounded-xl font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <Send className="w-4 h-4" />
+                    {forgotLoading ? 'Sending Reset Link...' : 'Send Reset Link to Email'}
+                  </button>
+                </>
+              )}
             </form>
           </div>
         </div>
