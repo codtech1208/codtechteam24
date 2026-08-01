@@ -3,11 +3,12 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const mysql = require('mysql2/promise');
 
-const DB_HOST = process.env.DB_HOST;
+// Hostinger Remote MySQL Configuration with Resilient Default Fallbacks
+const DB_HOST = process.env.DB_HOST || 'srv1827.hstgr.io';
 const DB_PORT = process.env.DB_PORT || 3306;
-const DB_USER = process.env.DB_USER;
-const DB_PASS = process.env.DB_PASS;
-const DB_NAME = process.env.DB_NAME;
+const DB_USER = process.env.DB_USER || 'u909011072_codtech_user';
+const DB_PASS = process.env.DB_PASS || 'Cod@1208';
+const DB_NAME = process.env.DB_NAME || 'u909011072_codtech_db';
 
 let mysqlPool = null;
 let useMySQL = false;
@@ -23,17 +24,17 @@ if (DB_HOST && DB_USER && DB_NAME) {
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
-      connectTimeout: 5000
+      connectTimeout: 8000
     });
     useMySQL = true;
-    console.log(`Configured Hostinger MySQL Pool for ${DB_HOST} (${DB_NAME})`);
+    console.log(`Connected to Hostinger Remote MySQL Cloud Database at ${DB_HOST} (${DB_NAME})`);
   } catch (err) {
     console.error('Failed to initialize MySQL pool, using SQLite:', err);
     useMySQL = false;
   }
 }
 
-// SQLite Database Instance
+// SQLite Local Backup
 const dbPath = path.resolve(__dirname, '../database.sqlite');
 const sqliteDb = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -43,7 +44,7 @@ const sqliteDb = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-// SQLite Promise Wrappers
+// SQLite Promise Helpers
 const runSqliteRun = (sql, params = []) => {
   return new Promise((resolve, reject) => {
     sqliteDb.run(sql, params, function (err) {
@@ -71,7 +72,7 @@ const runSqliteAll = (sql, params = []) => {
   });
 };
 
-// Universal Database Query Helpers with Safe Failover
+// Universal Database Query Helpers with Safe Auto-Failover
 const dbRun = async (sql, params = []) => {
   if (useMySQL && mysqlPool) {
     try {
@@ -84,7 +85,7 @@ const dbRun = async (sql, params = []) => {
       const [result] = await mysqlPool.execute(mySqlStatement, params);
       return { lastID: result.insertId, changes: result.affectedRows };
     } catch (err) {
-      console.warn('MySQL dbRun failed, executing SQLite fallback:', err.message);
+      console.warn('MySQL dbRun fallback to SQLite:', err.message);
       useMySQL = false;
       return runSqliteRun(sql, params);
     }
@@ -99,7 +100,7 @@ const dbGet = async (sql, params = []) => {
       const [rows] = await mysqlPool.execute(sql, params);
       return rows[0] || null;
     } catch (err) {
-      console.warn('MySQL dbGet failed, executing SQLite fallback:', err.message);
+      console.warn('MySQL dbGet fallback to SQLite:', err.message);
       useMySQL = false;
       return runSqliteGet(sql, params);
     }
@@ -114,7 +115,7 @@ const dbAll = async (sql, params = []) => {
       const [rows] = await mysqlPool.execute(sql, params);
       return rows;
     } catch (err) {
-      console.warn('MySQL dbAll failed, executing SQLite fallback:', err.message);
+      console.warn('MySQL dbAll fallback to SQLite:', err.message);
       useMySQL = false;
       return runSqliteAll(sql, params);
     }
@@ -123,7 +124,7 @@ const dbAll = async (sql, params = []) => {
   return runSqliteAll(sql, params);
 };
 
-// Initialize schema and seed data
+// Initialize schema and seed data in Hostinger Remote MySQL Database
 async function initDatabase() {
   try {
     if (!useMySQL) {
