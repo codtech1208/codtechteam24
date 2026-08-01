@@ -1,39 +1,104 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcryptjs');
-const { encrypt } = require('../utils/crypto');
+const mysql = require('mysql2/promise');
 
+const DB_HOST = process.env.DB_HOST;
+const DB_PORT = process.env.DB_PORT || 3306;
+const DB_USER = process.env.DB_USER;
+const DB_PASS = process.env.DB_PASS;
+const DB_NAME = process.env.DB_NAME;
+
+let mysqlPool = null;
+let useMySQL = false;
+
+if (DB_HOST && DB_USER && DB_NAME) {
+  try {
+    mysqlPool = mysql.createPool({
+      host: DB_HOST,
+      port: Number(DB_PORT),
+      user: DB_USER,
+      password: DB_PASS,
+      database: DB_NAME,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0
+    });
+    useMySQL = true;
+    console.log(`Connected to Hostinger Remote MySQL Database at ${DB_HOST} (${DB_NAME})`);
+  } catch (err) {
+    console.error('Failed to initialize MySQL pool, falling back to SQLite:', err);
+    useMySQL = false;
+  }
+}
+
+// SQLite Fallback
 const dbPath = path.resolve(__dirname, '../database.sqlite');
-const db = new sqlite3.Database(dbPath, (err) => {
+const sqliteDb = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Failed to connect to SQLite database:', err);
   } else {
-    console.log('Connected to SQLite database at:', dbPath);
+    console.log('Connected to SQLite fallback database at:', dbPath);
   }
 });
 
-// Helper promises for SQLite
-const dbRun = (sql, params = []) => {
+// Universal Database Query Helpers
+const dbRun = async (sql, params = []) => {
+  if (useMySQL && mysqlPool) {
+    try {
+      // Convert SQLite ? syntax / AUTOINCREMENT syntax to MySQL if necessary
+      let mySqlStatement = sql
+        .replace(/INTEGER PRIMARY KEY AUTOINCREMENT/gi, 'INT AUTO_INCREMENT PRIMARY KEY')
+        .replace(/DATETIME DEFAULT CURRENT_TIMESTAMP/gi, 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+        .replace(/BOOLEAN/gi, 'TINYINT(1)')
+        .replace(/TEXT/gi, 'VARCHAR(255)');
+
+      const [result] = await mysqlPool.execute(mySqlStatement, params);
+      return { lastID: result.insertId, changes: result.affectedRows };
+    } catch (err) {
+      // Fallback to SQLite if MySQL fails
+      useMySQL = false;
+    }
+  }
+
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
+    sqliteDb.run(sql, params, function (err) {
       if (err) reject(err);
       else resolve(this);
     });
   });
 };
 
-const dbGet = (sql, params = []) => {
+const dbGet = async (sql, params = []) => {
+  if (useMySQL && mysqlPool) {
+    try {
+      const [rows] = await mysqlPool.execute(sql, params);
+      return rows[0] || null;
+    } catch (err) {
+      useMySQL = false;
+    }
+  }
+
   return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
+    sqliteDb.get(sql, params, (err, row) => {
       if (err) reject(err);
       else resolve(row);
     });
   });
 };
 
-const dbAll = (sql, params = []) => {
+const dbAll = async (sql, params = []) => {
+  if (useMySQL && mysqlPool) {
+    try {
+      const [rows] = await mysqlPool.execute(sql, params);
+      return rows;
+    } catch (err) {
+      useMySQL = false;
+    }
+  }
+
   return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
+    sqliteDb.all(sql, params, (err, rows) => {
       if (err) reject(err);
       else resolve(rows);
     });
@@ -42,224 +107,173 @@ const dbAll = (sql, params = []) => {
 
 // Initialize schema and seed data
 async function initDatabase() {
-  await dbRun('PRAGMA foreign_keys = ON;');
+  if (!useMySQL) {
+    await dbRun('PRAGMA foreign_keys = ON;');
+  }
 
   // Users table
   await dbRun(`
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      employee_id TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('super_admin', 'employee')),
-      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'inactive')),
-      phone TEXT,
-      avatar TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      employee_id VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      role VARCHAR(50) NOT NULL,
+      status VARCHAR(50) NOT NULL DEFAULT 'active',
+      phone VARCHAR(50),
+      avatar VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
   // Clients table
   await dbRun(`
     CREATE TABLE IF NOT EXISTS clients (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL,
-      mobile TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      mobile VARCHAR(50) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
   // Projects table
   await dbRun(`
     CREATE TABLE IF NOT EXISTS projects (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      client_id INTEGER NOT NULL,
-      project_name TEXT,
-      project_type TEXT NOT NULL,
-      total_worth REAL NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'Ongoing' CHECK(status IN ('Ongoing', 'Completed')),
-      payment_status TEXT NOT NULL DEFAULT 'Unpaid' CHECK(payment_status IN ('Unpaid', 'Paid')),
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      client_id INT NOT NULL,
+      project_name VARCHAR(255),
+      project_type VARCHAR(255) NOT NULL,
+      total_worth DOUBLE NOT NULL DEFAULT 0,
+      status VARCHAR(50) NOT NULL DEFAULT 'Ongoing',
+      payment_status VARCHAR(50) NOT NULL DEFAULT 'Unpaid',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
-
-  // Migrations for existing DB
-  try {
-    await dbRun('ALTER TABLE projects ADD COLUMN project_name TEXT;');
-  } catch (e) {}
-  try {
-    await dbRun("ALTER TABLE projects ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'Unpaid';");
-  } catch (e) {}
 
   // Assignments table
   await dbRun(`
     CREATE TABLE IF NOT EXISTS assignments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL UNIQUE,
-      employee_id INTEGER NOT NULL,
-      assigned_amount REAL NOT NULL DEFAULT 0,
-      remarks TEXT,
-      assigned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      assigned_by INTEGER,
-      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-      FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      project_id INT NOT NULL UNIQUE,
+      employee_id INT NOT NULL,
+      assigned_amount DOUBLE NOT NULL DEFAULT 0,
+      remarks VARCHAR(255),
+      assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      assigned_by INT
     );
   `);
 
   // Assignment History
   await dbRun(`
     CREATE TABLE IF NOT EXISTS assignment_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL,
-      previous_employee_name TEXT,
-      new_employee_name TEXT NOT NULL,
-      assigned_amount REAL NOT NULL,
-      remarks TEXT,
-      changed_by_name TEXT NOT NULL,
-      changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      project_id INT NOT NULL,
+      previous_employee_name VARCHAR(255),
+      new_employee_name VARCHAR(255) NOT NULL,
+      assigned_amount DOUBLE NOT NULL,
+      remarks VARCHAR(255),
+      changed_by_name VARCHAR(255) NOT NULL,
+      changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
   // Project Credentials Table
   await dbRun(`
     CREATE TABLE IF NOT EXISTS project_credentials (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL UNIQUE,
-      domain_platform TEXT,
-      domain_email TEXT,
-      domain_password_encrypted TEXT,
-      hosting_provider TEXT,
-      hosting_email TEXT,
-      hosting_password_encrypted TEXT,
-      github_email TEXT,
-      github_password_encrypted TEXT,
-      github_repository TEXT,
-      submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      submitted_by INTEGER,
-      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      project_id INT NOT NULL UNIQUE,
+      domain_platform VARCHAR(255),
+      domain_email VARCHAR(255),
+      domain_password_encrypted VARCHAR(255),
+      hosting_provider VARCHAR(255),
+      hosting_email VARCHAR(255),
+      hosting_password_encrypted VARCHAR(255),
+      github_email VARCHAR(255),
+      github_password_encrypted VARCHAR(255),
+      github_repository VARCHAR(255),
+      submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      submitted_by INT
     );
   `);
 
   // Status Logs Table
   await dbRun(`
     CREATE TABLE IF NOT EXISTS status_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL,
-      old_status TEXT NOT NULL,
-      new_status TEXT NOT NULL,
-      changed_by TEXT NOT NULL,
-      changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      project_id INT NOT NULL,
+      old_status VARCHAR(50) NOT NULL,
+      new_status VARCHAR(50) NOT NULL,
+      changed_by VARCHAR(255) NOT NULL,
+      changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
   // Activity Logs Table
   await dbRun(`
     CREATE TABLE IF NOT EXISTS activity_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      user_name TEXT,
-      action TEXT NOT NULL,
-      details TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT,
+      user_name VARCHAR(255),
+      action VARCHAR(255) NOT NULL,
+      details VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
   // Credential View Logs Table (Audit)
   await dbRun(`
     CREATE TABLE IF NOT EXISTS credential_view_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL,
-      viewed_by TEXT NOT NULL,
-      viewed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      project_id INT NOT NULL,
+      viewed_by VARCHAR(255) NOT NULL,
+      viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
   // Seed Data if Users table is empty
-  const userCount = await dbGet('SELECT COUNT(*) as count FROM users');
-  if (userCount.count === 0) {
-    console.log('Seeding database with default initial data...');
-    const adminPasswordHash = await bcrypt.hash('Admin@123456', 10);
-    const empPasswordHash = await bcrypt.hash('Emp@123456', 10);
+  try {
+    const userCount = await dbGet('SELECT COUNT(*) as count FROM users');
+    if (userCount && (userCount.count === 0 || userCount.count === '0')) {
+      console.log('Seeding database with default initial data...');
+      const adminPasswordHash = await bcrypt.hash('9989551305', 10);
+      const empPasswordHash = await bcrypt.hash('Emp@123456', 10);
 
-    // 1. Create Super Admin
-    await dbRun(
-      `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ['Super Admin', 'admin@codtech.com', 'CT-ADM-001', adminPasswordHash, 'super_admin', 'active', '+91 9876543210']
-    );
+      // 1. Create Super Admin
+      await dbRun(
+        `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ['Harish Neela (Super Admin)', 'harishneela83@gmail.com', 'CT-ADM-001', adminPasswordHash, 'super_admin', 'active', '+91 9989551305']
+      );
 
-    // 2. Create Employees
-    await dbRun(
-      `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ['John Doe', 'emp.john@codtech.com', 'CT-EMP-101', empPasswordHash, 'employee', 'active', '+91 9123456789']
-    );
+      // 2. Create Employees
+      await dbRun(
+        `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ['John Doe', 'emp.john@codtech.com', 'CT-EMP-101', empPasswordHash, 'employee', 'active', '+91 9123456789']
+      );
 
-    await dbRun(
-      `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ['Sarah Smith', 'emp.sarah@codtech.com', 'CT-EMP-102', empPasswordHash, 'employee', 'active', '+91 9988776655']
-    );
+      await dbRun(
+        `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ['Sarah Smith', 'emp.sarah@codtech.com', 'CT-EMP-102', empPasswordHash, 'employee', 'active', '+91 9988776655']
+      );
 
-    await dbRun(
-      `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ['Alex Johnson', 'emp.alex@codtech.com', 'CT-EMP-103', empPasswordHash, 'employee', 'active', '+91 9765432109']
-    );
+      await dbRun(
+        `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ['Alex Johnson', 'emp.alex@codtech.com', 'CT-EMP-103', empPasswordHash, 'employee', 'active', '+91 9765432109']
+      );
 
-    // 3. Create Clients
-    await dbRun(
-      `INSERT INTO clients (name, email, mobile) VALUES (?, ?, ?)`,
-      ['Acme Global Solutions', 'contact@acmeglobal.com', '+1 555 019 2831']
-    );
-    await dbRun(
-      `INSERT INTO clients (name, email, mobile) VALUES (?, ?, ?)`,
-      ['Nexus Retail Enterprise', 'billing@nexusretail.io', '+91 9822334455']
-    );
-    await dbRun(
-      `INSERT INTO clients (name, email, mobile) VALUES (?, ?, ?)`,
-      ['Apex Health Systems', 'admin@apexhealth.org', '+1 800 443 2190']
-    );
-
-    // 4. Create Projects
-    await dbRun(
-      `INSERT INTO projects (client_id, project_name, project_type, total_worth, status, payment_status) VALUES (?, ?, ?, ?, ?, ?)`,
-      [1, 'Acme E-Store Portal', 'E-Commerce Website', 45000, 'Ongoing', 'Unpaid']
-    );
-    await dbRun(
-      `INSERT INTO projects (client_id, project_name, project_type, total_worth, status, payment_status) VALUES (?, ?, ?, ?, ?, ?)`,
-      [2, 'Nexus Omnichannel Suite', 'Application + Website (Android App)', 85000, 'Completed', 'Paid']
-    );
-    await dbRun(
-      `INSERT INTO projects (client_id, project_name, project_type, total_worth, status, payment_status) VALUES (?, ?, ?, ?, ?, ?)`,
-      [3, 'Apex Patient Portal', 'Dynamic Website', 32000, 'Ongoing', 'Unpaid']
-    );
-
-    // 5. Create Assignments
-    await dbRun(
-      `INSERT INTO assignments (project_id, employee_id, assigned_amount, remarks, assigned_by) VALUES (?, ?, ?, ?, ?)`,
-      [1, 2, 12000, 'Lead developer for frontend and store integration', 1]
-    );
-    await dbRun(
-      `INSERT INTO assignments (project_id, employee_id, assigned_amount, remarks, assigned_by) VALUES (?, ?, ?, ?, ?)`,
-      [2, 3, 25000, 'Full stack app and web backend build', 1]
-    );
-    await dbRun(
-      `INSERT INTO assignments (project_id, employee_id, assigned_amount, remarks, assigned_by) VALUES (?, ?, ?, ?, ?)`,
-      [3, 4, 9000, 'Patient portal dynamic modules implementation', 1]
-    );
-
-    console.log('Database seeding complete!');
+      console.log('Database seeding complete!');
+    }
+  } catch (err) {
+    console.error('Error during init database seed:', err);
   }
 }
 
-module.exports = { db, dbRun, dbGet, dbAll, initDatabase };
+module.exports = { db: sqliteDb, dbRun, dbGet, dbAll, initDatabase };
