@@ -13,12 +13,17 @@ import {
   ShieldCheck,
   Lock,
   Check,
-  CreditCard,
   Send,
   Bell,
   Globe,
   Server,
-  Code
+  Code,
+  Mail,
+  Phone,
+  Eye,
+  FileText,
+  User,
+  ExternalLink
 } from 'lucide-react';
 
 export default function EmployeeDashboard() {
@@ -27,6 +32,7 @@ export default function EmployeeDashboard() {
 
   // Credential & Completion Modal state
   const [credModalOpen, setCredModalOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -63,7 +69,11 @@ export default function EmployeeDashboard() {
     fetchEmployeeData();
   }, []);
 
-  // When Employee clicks Mark Completed or Submit Credentials
+  const handleOpenDetailsModal = (project) => {
+    setSelectedProject(project);
+    setDetailsModalOpen(true);
+  };
+
   const handleOpenCompletionModal = (project) => {
     setSelectedProject(project);
     setCredForm({
@@ -80,7 +90,6 @@ export default function EmployeeDashboard() {
     setCredModalOpen(true);
   };
 
-  // Submit Credentials and mark project as Completed
   const handleSubmitCompletion = async (e) => {
     e.preventDefault();
     if (!credForm.domainEmail || !credForm.domainPassword || !credForm.hostingEmail || !credForm.hostingPassword || !credForm.githubEmail || !credForm.githubRepository) {
@@ -90,20 +99,16 @@ export default function EmployeeDashboard() {
 
     setSubmitting(true);
     try {
-      // 1. Submit AES-256 Encrypted Credentials to database
       await api.post('/credentials', {
         projectId: selectedProject.id,
         ...credForm
       });
-
-      // 2. Mark Project Status as Completed
       await api.patch(`/projects/${selectedProject.id}/status`, { status: 'Completed' });
 
       setToast({ message: 'Project Marked Completed & Credentials Submitted to Super Admin!', type: 'success' });
       setCredModalOpen(false);
       fetchEmployeeData();
     } catch (err) {
-      // Fallback update
       try {
         await api.patch(`/projects/${selectedProject.id}/status`, { status: 'Completed' });
       } catch (e) {}
@@ -136,7 +141,7 @@ export default function EmployeeDashboard() {
         <div>
           <span className="text-xs uppercase font-bold tracking-widest opacity-90">Developer Workspace</span>
           <h2 className="text-2xl font-bold mt-1">Assigned Projects Dashboard</h2>
-          <p className="text-xs text-orange-100 mt-1">Submit Domain, Hosting, and Git credentials upon completion to receive admin payout.</p>
+          <p className="text-xs text-orange-100 mt-1">View client contact details, project specifications, and submit credentials upon completion.</p>
         </div>
       </div>
 
@@ -151,7 +156,7 @@ export default function EmployeeDashboard() {
             {paidProjects.map((p) => (
               <div key={p.id} className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl text-xs flex items-center justify-between font-medium">
                 <span>
-                  <strong>{p.project_type}</strong> (Client: {p.client_name}) — Payout Amount: <strong>{formatCurrency(p.assigned_amount)}</strong>
+                  <strong>{p.project_name || p.project_type}</strong> (Client: {p.client_name}) — Payout Amount: <strong>{formatCurrency(p.assigned_amount)}</strong>
                 </span>
                 <span className="bg-white text-emerald-700 font-bold px-2.5 py-0.5 rounded-full text-[11px] uppercase tracking-wider">
                   Payment Received ✅
@@ -193,7 +198,7 @@ export default function EmployeeDashboard() {
       {/* Projects Table */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold text-slate-800">My Assigned Projects</h3>
+          <h3 className="text-base font-bold text-slate-800">My Assigned Projects & Client Contact Details</h3>
           <span className="text-xs text-gray-400 font-medium">{projects.length} Projects Total</span>
         </div>
 
@@ -201,12 +206,12 @@ export default function EmployeeDashboard() {
           <table className="w-full text-left text-sm border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100 text-gray-400 font-semibold text-xs uppercase tracking-wider">
-                <th className="px-5 py-3.5">Client Name</th>
-                <th className="px-5 py-3.5">Project Type</th>
+                <th className="px-5 py-3.5">Project & Client Contact Info</th>
+                <th className="px-5 py-3.5">Project Category</th>
                 <th className="px-5 py-3.5">Assigned Payout</th>
                 <th className="px-5 py-3.5">Payment Status</th>
                 <th className="px-5 py-3.5">Status</th>
-                <th className="px-5 py-3.5 text-right">Action / Completion</th>
+                <th className="px-5 py-3.5 text-right">Actions & Completion</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -223,9 +228,27 @@ export default function EmployeeDashboard() {
 
                   return (
                     <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+                      {/* Project & Client Contact Info */}
                       <td className="px-5 py-4">
-                        <p className="font-bold text-slate-800">{p.client_name}</p>
-                        <p className="text-xs text-gray-400">{p.client_email}</p>
+                        <div className="space-y-1">
+                          <p className="font-bold text-slate-900 text-sm">{p.project_name || `${p.client_name} Project`}</p>
+                          <div className="flex flex-col text-xs text-slate-600 gap-0.5">
+                            <span className="font-semibold text-slate-800 flex items-center gap-1">
+                              <User className="w-3.5 h-3.5 text-brand-500" /> Client: {p.client_name}
+                            </span>
+                            <a href={`mailto:${p.client_email}`} className="text-brand-600 hover:underline flex items-center gap-1">
+                              <Mail className="w-3.5 h-3.5 text-brand-500" /> {p.client_email}
+                            </a>
+                            <a href={`tel:${p.client_mobile}`} className="text-emerald-600 font-medium hover:underline flex items-center gap-1">
+                              <Phone className="w-3.5 h-3.5 text-emerald-500" /> {p.client_mobile || '+91 9876543210'}
+                            </a>
+                          </div>
+                          {p.assignment_remarks && (
+                            <p className="text-[11px] text-gray-500 italic mt-1 bg-gray-50 p-1.5 rounded-md border border-gray-100">
+                              Remarks: {p.assignment_remarks}
+                            </p>
+                          )}
+                        </div>
                       </td>
                       <td className="px-5 py-4 font-semibold text-slate-700">{p.project_type}</td>
                       <td className="px-5 py-4 font-bold text-brand-600">{formatCurrency(p.assigned_amount)}</td>
@@ -252,18 +275,27 @@ export default function EmployeeDashboard() {
                         )}
                       </td>
                       <td className="px-5 py-4 text-right">
-                        {isCompleted ? (
-                          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-xl inline-flex items-center gap-1">
-                            <ShieldCheck className="w-4 h-4 text-emerald-600" /> Credentials Submitted
-                          </span>
-                        ) : (
+                        <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleOpenCompletionModal(p)}
-                            className="px-4 py-2 bg-gradient-to-r from-brand-500 to-orange-600 hover:opacity-95 text-white rounded-xl font-semibold text-xs shadow-md shadow-brand-500/20 inline-flex items-center gap-1.5 transition-all"
+                            onClick={() => handleOpenDetailsModal(p)}
+                            title="View Full Client & Form Details"
+                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-slate-700 rounded-xl font-semibold text-xs inline-flex items-center gap-1 transition-all"
                           >
-                            <KeyRound className="w-4 h-4" /> Mark Completed & Submit Details
+                            <Eye className="w-3.5 h-3.5" /> Client Info
                           </button>
-                        )}
+                          {isCompleted ? (
+                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl inline-flex items-center gap-1">
+                              <ShieldCheck className="w-4 h-4 text-emerald-600" /> Submitted
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleOpenCompletionModal(p)}
+                              className="px-3.5 py-1.5 bg-gradient-to-r from-brand-500 to-orange-600 hover:opacity-95 text-white rounded-xl font-semibold text-xs shadow-md shadow-brand-500/20 inline-flex items-center gap-1.5 transition-all"
+                            >
+                              <KeyRound className="w-3.5 h-3.5" /> Mark Completed
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -274,7 +306,92 @@ export default function EmployeeDashboard() {
         </div>
       </div>
 
-      {/* Modal: Project Completion & Required Credentials Form */}
+      {/* Modal 1: View Full Client Contact & Assigned Form Details */}
+      {selectedProject && (
+        <Modal
+          isOpen={detailsModalOpen}
+          onClose={() => setDetailsModalOpen(false)}
+          title={`Assigned Form Details: ${selectedProject.project_name || selectedProject.client_name}`}
+          maxWidth="max-w-2xl"
+        >
+          <div className="space-y-5">
+            {/* Header info */}
+            <div className="p-4 bg-orange-50 rounded-2xl border border-orange-200 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600">Assigned Project #{selectedProject.id}</span>
+                <h3 className="text-lg font-bold text-slate-900">{selectedProject.project_name || `${selectedProject.client_name} Project`}</h3>
+                <p className="text-xs text-slate-600 font-medium">Category: {selectedProject.project_type}</p>
+              </div>
+              <span className={`text-xs font-bold px-3 py-1 rounded-full border ${getStatusBadge(selectedProject.status)}`}>
+                {selectedProject.status}
+              </span>
+            </div>
+
+            {/* Client Contact Info Section */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+              <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <User className="w-4 h-4 text-brand-500" /> Client Contact Information
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="p-3 bg-white border rounded-xl">
+                  <span className="text-gray-400 block font-medium">Client Name</span>
+                  <span className="font-bold text-slate-900 text-sm">{selectedProject.client_name}</span>
+                </div>
+                <div className="p-3 bg-white border rounded-xl">
+                  <span className="text-gray-400 block font-medium">Client Email</span>
+                  <a href={`mailto:${selectedProject.client_email}`} className="font-bold text-brand-600 hover:underline flex items-center gap-1 mt-0.5">
+                    <Mail className="w-3.5 h-3.5" /> {selectedProject.client_email}
+                  </a>
+                </div>
+                <div className="p-3 bg-white border rounded-xl">
+                  <span className="text-gray-400 block font-medium">Client Mobile</span>
+                  <a href={`tel:${selectedProject.client_mobile}`} className="font-bold text-emerald-600 hover:underline flex items-center gap-1 mt-0.5">
+                    <Phone className="w-3.5 h-3.5" /> {selectedProject.client_mobile || '+91 9876543210'}
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Employee Payout & Assignment Instructions */}
+            <div className="p-4 bg-brand-50/60 border border-brand-200 rounded-2xl space-y-3">
+              <h4 className="font-bold text-xs text-brand-900 uppercase tracking-wider flex items-center gap-1.5">
+                <DollarSign className="w-4 h-4 text-brand-600" /> Employee Payout & Instructions
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3 bg-white border border-brand-200 rounded-xl">
+                  <span className="text-brand-600 font-semibold block">Your Assigned Payout</span>
+                  <span className="text-xl font-bold text-brand-700">{formatCurrency(selectedProject.assigned_amount)}</span>
+                </div>
+                <div className="p-3 bg-white border border-brand-200 rounded-xl">
+                  <span className="text-slate-500 font-semibold block">Payment Status</span>
+                  <span className="text-xs font-bold text-slate-800 uppercase mt-1 block">
+                    {selectedProject.payment_status === 'Paid' ? 'PAID ✅' : 'PENDING ⏳'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-xs font-semibold text-slate-700 block mb-1">Assignment Remarks / Instructions:</span>
+                <div className="p-3 bg-white border rounded-xl text-xs text-slate-800 font-medium leading-relaxed">
+                  {selectedProject.assignment_remarks || 'No special remarks provided by Super Admin.'}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setDetailsModalOpen(false)}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs"
+              >
+                Close Details
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal 2: Project Completion & Required Credentials Form */}
       {selectedProject && (
         <Modal
           isOpen={credModalOpen}
