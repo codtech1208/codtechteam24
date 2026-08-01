@@ -18,13 +18,16 @@ const transporter = nodemailer.createTransport({
 });
 
 /**
- * Send Password Reset Email with OTP Code & Instructions
+ * Send Password Reset Email with Direct Link & OTP Code
  */
-async function sendPasswordResetEmail(toEmail, userName, resetCode) {
+async function sendPasswordResetEmail(toEmail, userName, otpCode, resetToken) {
+  const domain = 'https://codtechteam.com';
+  const resetLink = `${domain}/#/reset-password?email=${encodeURIComponent(toEmail)}&token=${resetToken}`;
+
   const htmlContent = `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0;">
       <div style="text-align: center; margin-bottom: 24px;">
-        <div style="display: inline-block; background-color: #FF6B00; color: white; padding: 12px 20px; border-radius: 12px; font-weight: bold; font-size: 20px; text-transform: uppercase; letter-spacing: 1px;">
+        <div style="display: inline-block; background-color: #FF6B00; color: white; padding: 12px 24px; border-radius: 12px; font-weight: bold; font-size: 20px; text-transform: uppercase; letter-spacing: 1px;">
           CODTECH TEAM
         </div>
         <p style="color: #64748b; font-size: 13px; margin-top: 6px; font-weight: 500;">Enterprise Internal System</p>
@@ -35,14 +38,23 @@ async function sendPasswordResetEmail(toEmail, userName, resetCode) {
         <p style="color: #475569; font-size: 14px; line-height: 1.6;">Hello <strong>${userName}</strong>,</p>
         <p style="color: #475569; font-size: 14px; line-height: 1.6;">We received a request to reset your password for your <strong>CODTECH TEAM Enterprise</strong> account.</p>
 
-        <div style="margin: 28px 0; text-align: center; padding: 20px; background-color: #fff7ed; border: 1px dashed #fdba74; border-radius: 12px;">
-          <p style="color: #c2410c; font-size: 12px; font-weight: bold; text-transform: uppercase; margin: 0 0 8px 0;">Your 6-Digit Password Reset OTP Code</p>
-          <span style="font-family: monospace; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #ea580c;">${resetCode}</span>
+        <!-- Big Clickable Button -->
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${resetLink}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #FF6B00 0%, #ea580c 100%); color: #ffffff; padding: 16px 36px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 10px 15px -3px rgba(255, 107, 0, 0.3);">
+            👉 CLICK HERE TO RESET YOUR PASSWORD
+          </a>
         </div>
 
-        <p style="color: #475569; font-size: 13px; line-height: 1.6;">
-          Use this OTP code to reset your password. This code will expire in 15 minutes.
+        <p style="color: #64748b; font-size: 12px; text-align: center; margin-bottom: 24px;">
+          Or copy & paste this link in your browser:<br/>
+          <a href="${resetLink}" style="color: #ea580c; word-break: break-all;">${resetLink}</a>
         </p>
+
+        <!-- 6-digit OTP section -->
+        <div style="margin-top: 24px; padding: 16px; background-color: #fff7ed; border: 1px dashed #fdba74; border-radius: 12px; text-align: center;">
+          <p style="color: #c2410c; font-size: 11px; font-weight: bold; text-transform: uppercase; margin: 0 0 4px 0;">Alternatively, use this 6-digit OTP code:</p>
+          <span style="font-family: monospace; font-size: 26px; font-weight: bold; letter-spacing: 5px; color: #ea580c;">${otpCode}</span>
+        </div>
 
         <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">If you did not request a password reset, please ignore this email or notify your Super Admin immediately.</p>
       </div>
@@ -56,7 +68,7 @@ async function sendPasswordResetEmail(toEmail, userName, resetCode) {
   return await transporter.sendMail({
     from: SMTP_FROM,
     to: toEmail,
-    subject: `🔑 Password Reset OTP Code: ${resetCode} - CODTECH TEAM`,
+    subject: `🔗 Password Reset Link for CODTECH TEAM (${userName})`,
     html: htmlContent
   });
 }

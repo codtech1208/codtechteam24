@@ -6,6 +6,7 @@ import Header from './components/layout/Header';
 
 // Pages
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import EmployeeManagement from './pages/admin/EmployeeManagement';
 import ClientManagement from './pages/admin/ClientManagement';
@@ -59,7 +60,7 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Login Page */}
+      {/* Login & Reset Password Pages */}
       <Route
         path="/login"
         element={
@@ -74,6 +75,7 @@ export default function App() {
           )
         }
       />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Super Admin Routes */}
       <Route
@@ -141,8 +143,6 @@ export default function App() {
           </RequireAdmin>
         }
       />
-
-
 
       {/* Employee Routes */}
       <Route
