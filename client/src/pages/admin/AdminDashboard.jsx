@@ -30,6 +30,35 @@ export default function AdminDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const INITIAL_DEFAULT_EMPLOYEES = [
+    { id: 2, email: 'emp.john@codtech.com' },
+    { id: 3, email: 'emp.sarah@codtech.com' },
+    { id: 4, email: 'emp.alex@codtech.com' }
+  ];
+
+  const getActiveEmployeesCount = (serverCount) => {
+    try {
+      const deletedList = JSON.parse(localStorage.getItem('codtech_deleted_employees') || '[]');
+      const localCustoms = JSON.parse(localStorage.getItem('codtech_custom_employees') || '[]');
+
+      const activeMap = new Map();
+      INITIAL_DEFAULT_EMPLOYEES.forEach((e) => {
+        if (!deletedList.includes(e.email.toLowerCase()) && !deletedList.includes(String(e.id))) {
+          activeMap.set(e.email.toLowerCase(), e);
+        }
+      });
+      localCustoms.forEach((e) => {
+        if (!deletedList.includes(e.email.toLowerCase()) && !deletedList.includes(String(e.id))) {
+          activeMap.set(e.email.toLowerCase(), e);
+        }
+      });
+
+      return activeMap.size;
+    } catch {
+      return serverCount || 0;
+    }
+  };
+
   useEffect(() => {
     async function fetchDashboard() {
       try {
@@ -53,6 +82,7 @@ export default function AdminDashboard() {
   }
 
   const { metrics, charts, feeds } = data;
+  const activeEmployeeCount = getActiveEmployeesCount(metrics.totalEmployees);
 
   const COLORS = ['#FF6B00', '#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899'];
 
@@ -97,7 +127,7 @@ export default function AdminDashboard() {
         />
         <StatsCard
           title="Active Employees"
-          value={metrics.totalEmployees}
+          value={activeEmployeeCount}
           icon={Users}
           color="green"
           subtitle="Developers & staff"
