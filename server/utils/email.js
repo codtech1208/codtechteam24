@@ -6,14 +6,17 @@ const SMTP_USER = process.env.SMTP_USER || 'harishneela83@gmail.com';
 const SMTP_PASSWORD = process.env.SMTP_PASSWORD || 'jiuxgqhwactiqolr';
 const SMTP_FROM = process.env.SMTP_FROM || '"CODTECH TEAM <harishneela83@gmail.com>"';
 
-// Transporter instance
+// Transporter instance with cloud TLS compatibility
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
   port: SMTP_PORT,
-  secure: false, // TLS 587
+  secure: false, // TLS on port 587
   auth: {
     user: SMTP_USER,
     pass: SMTP_PASSWORD
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 });
 
@@ -50,7 +53,7 @@ async function sendPasswordResetEmail(toEmail, userName, resetToken) {
           <a href="${resetLink}" style="color: #ea580c; word-break: break-all;">${resetLink}</a>
         </p>
 
-        <p style="color: #94a3b8; font-size: 12px; margin-top: 24px; border-t: 1px solid #f1f5f9; padding-top: 16px;">
+        <p style="color: #94a3b8; font-size: 12px; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
           This reset link will expire in 1 hour. If you did not request this, please ignore this email.
         </p>
       </div>
@@ -61,12 +64,15 @@ async function sendPasswordResetEmail(toEmail, userName, resetToken) {
     </div>
   `;
 
-  return await transporter.sendMail({
+  console.log(`[SMTP] Sending password reset email to ${toEmail}...`);
+  const info = await transporter.sendMail({
     from: SMTP_FROM,
     to: toEmail,
     subject: `🔐 Reset Your Password - CODTECH TEAM`,
     html: htmlContent
   });
+  console.log(`[SMTP] Email delivered successfully! MessageID: ${info.messageId}`);
+  return info;
 }
 
 module.exports = { transporter, sendPasswordResetEmail };
