@@ -25,11 +25,8 @@ export default function Login() {
     setLoading(true);
     try {
       const user = await login(email, password);
-      setToast({ message: 'Login successful! Redirecting...', type: 'success' });
-      setTimeout(() => {
-        const redirectUrl = user.role === 'super_admin' ? '/admin/dashboard' : '/employee/dashboard';
-        window.location.href = redirectUrl;
-      }, 400);
+      const targetPath = user.role === 'super_admin' ? '/admin/dashboard' : '/employee/dashboard';
+      navigate(targetPath, { replace: true });
     } catch (err) {
       const msg = err.response?.data?.error || 'Invalid email or password.';
       setToast({ message: msg, type: 'error' });
