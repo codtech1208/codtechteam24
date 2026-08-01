@@ -1,11 +1,20 @@
 {
-  "name": "codtech-team-root",
+  "name": "codtech-team-enterprise",
   "version": "1.0.0",
-  "private": true,
-  "description": "CODTECH TEAM Enterprise Project & Employee Management System Root",
+  "description": "CODTECH TEAM Enterprise Management System",
+  "main": "server/server.js",
   "scripts": {
-    "dev": "npm run dev --prefix client",
-    "server": "npm start --prefix server",
-    "start": "npm run dev --prefix client"
+    "postinstall": "cd client && npm install && cd ../server && npm install",
+    "build": "cd client && npm install && npm run build && cd .. && Copy-Item -Path client/dist/* -Destination . -Recurse -Force",
+    "start": "node server/server.js",
+    "dev": "npm run dev --prefix client"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.7"
   }
 }
