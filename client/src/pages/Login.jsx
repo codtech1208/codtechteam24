@@ -84,25 +84,6 @@ export default function Login() {
           <p className="text-xs font-semibold uppercase tracking-widest text-brand-600 mt-1">Enterprise Internal System</p>
         </div>
 
-        {/* Quick Credentials Info Box */}
-        <div className="mb-6 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600">
-          <p className="font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-brand-500" /> Super Admin Credentials:
-          </p>
-          <div className="grid grid-cols-2 gap-2 mt-1 font-mono text-[11px]">
-            <div>
-              <span className="font-bold text-slate-700">Super Admin:</span><br/>
-              harishneela83@gmail.com<br/>
-              <span className="text-gray-400">9989551305</span>
-            </div>
-            <div>
-              <span className="font-bold text-slate-700">Employee:</span><br/>
-              emp.john@codtech.com<br/>
-              <span className="text-gray-400">Emp@123456</span>
-            </div>
-          </div>
-        </div>
-
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
