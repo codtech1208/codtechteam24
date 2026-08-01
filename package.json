@@ -1,0 +1,11 @@
+{
+  "name": "codtech-team-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CODTECH TEAM Enterprise Project & Employee Management System Root",
+  "scripts": {
+    "dev": "npm run dev --prefix client",
+    "server": "npm start --prefix server",
+    "start": "npm run dev --prefix client"
+  }
+}

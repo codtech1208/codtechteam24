@@ -1,0 +1,660 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../../utils/api';
+import DataTable from '../../components/common/DataTable';
+import Modal from '../../components/common/Modal';
+import Toast from '../../components/common/Toast';
+import { formatCurrency, formatDate, getStatusBadge } from '../../utils/formatters';
+import { FolderPlus, Eye, Edit, Trash2, ShieldCheck, UserCheck, Code, Smartphone, Info, IndianRupee } from 'lucide-react';
+
+export default function ProjectManagement() {
+  const [projects, setProjects] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Filters & Pagination
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [order, setOrder] = useState('DESC');
+  const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, limit: 10, totalRecords: 0 });
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const navigate = useNavigate();
+
+  const WEB_TYPES = [
+    'None',
+    'Static Website',
+    'Dynamic Website',
+    'E-Commerce Website',
+    'Multi Dynamic Website'
+  ];
+
+  const APP_TYPES = [
+    'None',
+    'Android App',
+    'iOS App',
+    'Android + iOS App'
+  ];
+
+  const [formData, setFormData] = useState({
+    projectName: '',
+    clientName: '',
+    clientEmail: '',
+    clientMobile: '',
+    webType: 'Dynamic Website',
+    webCost: '',
+    appType: 'None',
+    appCost: '',
+    employeePayout: '',
+    totalWorth: '',
+    employeeId: '',
+    remarks: ''
+  });
+
+  // When web component cost changes, automatically sum into Total Client Project Worth (₹)
+  const handleWebCostChange = (val) => {
+    const appVal = parseFloat(formData.appCost || 0);
+    const webVal = parseFloat(val || 0);
+    const totalComponentWorth = (webVal + appVal);
+    setFormData((prev) => ({
+      ...prev,
+      webCost: val,
+      totalWorth: totalComponentWorth > 0 ? String(totalComponentWorth) : prev.totalWorth
+    }));
+  };
+
+  // When app component cost changes, automatically sum into Total Client Project Worth (₹)
+  const handleAppCostChange = (val) => {
+    const webVal = parseFloat(formData.webCost || 0);
+    const appVal = parseFloat(val || 0);
+    const totalComponentWorth = (webVal + appVal);
+    setFormData((prev) => ({
+      ...prev,
+      appCost: val,
+      totalWorth: totalComponentWorth > 0 ? String(totalComponentWorth) : prev.totalWorth
+    }));
+  };
+
+  const fetchProjects = async (page = 1) => {
+    setLoading(true);
+    try {
+      const res = await api.get('/projects', {
+        params: {
+          search,
+          status: statusFilter,
+          projectType: typeFilter,
+          sortBy,
+          order,
+          page,
+          limit: 10
+        }
+      });
+      setProjects(res.data.projects);
+      setPagination(res.data.pagination);
+    } catch (err) {
+      console.error('Fetch projects error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchEmployeesList = async () => {
+    try {
+      const res = await api.get('/employees?status=active');
+      setEmployees(res.data.employees);
+    } catch (err) {
+      console.error('Fetch employees list error:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects(1);
+    fetchEmployeesList();
+  }, [search, statusFilter, typeFilter, sortBy, order]);
+
+  const handleOpenCreate = () => {
+    fetchEmployeesList();
+    setSelectedProject(null);
+    setFormData({
+      projectName: '',
+      clientName: '',
+      clientEmail: '',
+      clientMobile: '',
+      webType: 'Dynamic Website',
+      webCost: '',
+      appType: 'None',
+      appCost: '',
+      employeePayout: '',
+      totalWorth: '',
+      employeeId: '',
+      remarks: ''
+    });
+    setModalOpen(true);
+  };
+
+  const handleOpenEdit = (p) => {
+    fetchEmployeesList();
+    setSelectedProject(p);
+    setFormData({
+      projectName: p.project_name || '',
+      clientName: p.client_name,
+      clientEmail: p.client_email,
+      clientMobile: p.client_mobile,
+      webType: p.project_type || 'Dynamic Website',
+      webCost: '',
+      appType: 'None',
+      appCost: '',
+      employeePayout: p.assigned_amount || '',
+      totalWorth: p.total_worth,
+      employeeId: p.assigned_employee_id || '',
+      remarks: p.assignment_remarks || ''
+    });
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (formData.webType === 'None' && formData.appType === 'None') {
+      setToast({ message: 'Please select at least a Web Project Type or an App Project Type.', type: 'warning' });
+      return;
+    }
+
+    if (!formData.employeeId) {
+      setToast({ message: 'Please select an employee to assign this project to.', type: 'warning' });
+      return;
+    }
+
+    if (formData.employeePayout === '' || formData.employeePayout === undefined) {
+      setToast({ message: 'Please enter the amount the employee will get from us.', type: 'warning' });
+      return;
+    }
+
+    // Combine project types string
+    const types = [];
+    if (formData.webType !== 'None') types.push(formData.webType);
+    if (formData.appType !== 'None') types.push(formData.appType);
+    const combinedProjectType = types.join(' + ');
+
+    const totalEmployeeAmount = parseFloat(formData.employeePayout || 0);
+
+    try {
+      if (selectedProject) {
+        await api.put(`/projects/${selectedProject.id}`, {
+          projectName: formData.projectName,
+          projectType: combinedProjectType,
+          totalWorth: formData.totalWorth,
+          employeeId: formData.employeeId,
+          assignedAmount: totalEmployeeAmount,
+          remarks: formData.remarks
+        });
+        setToast({ message: 'Project Details & Assignment Updated Successfully', type: 'success' });
+      } else {
+        await api.post('/projects', {
+          projectName: formData.projectName,
+          clientName: formData.clientName,
+          clientEmail: formData.clientEmail,
+          clientMobile: formData.clientMobile,
+          projectType: combinedProjectType,
+          totalWorth: formData.totalWorth,
+          employeeId: formData.employeeId,
+          assignedAmount: totalEmployeeAmount,
+          remarks: formData.remarks || `Web: ${formData.webType} (₹${formData.webCost || 0}), App: ${formData.appType} (₹${formData.appCost || 0})`
+        });
+        setToast({ message: 'Project Created & Assigned Successfully', type: 'success' });
+      }
+      setModalOpen(false);
+      fetchProjects(pagination.currentPage);
+    } catch (err) {
+      setToast({ message: err.response?.data?.error || 'Failed to save project', type: 'error' });
+    }
+  };
+
+  const handleDelete = async (p) => {
+    if (!window.confirm(`Are you sure you want to delete Project #${p.id}?`)) return;
+    try {
+      await api.delete(`/projects/${p.id}`);
+      setToast({ message: 'Project Deleted Successfully', type: 'success' });
+      fetchProjects(pagination.currentPage);
+    } catch (err) {
+      setToast({ message: 'Failed to delete project', type: 'error' });
+    }
+  };
+
+  const columns = [
+    {
+      header: 'ID',
+      accessorKey: 'id',
+      render: (row) => <span className="font-mono text-xs font-bold text-slate-500">#{row.id}</span>
+    },
+    {
+      header: 'Project & Client',
+      render: (row) => (
+        <div>
+          <p className="font-bold text-slate-900 text-sm">{row.project_name || `${row.client_name} Project`}</p>
+          <p className="text-xs text-gray-500 font-medium">{row.client_name} ({row.client_email})</p>
+        </div>
+      )
+    },
+    {
+      header: 'Project Type',
+      accessorKey: 'project_type',
+      render: (row) => (
+        <span className="font-semibold text-slate-700 bg-gray-100 px-2.5 py-1 rounded-lg text-xs">
+          {row.project_type}
+        </span>
+      )
+    },
+    {
+      header: 'Total Client Value (Admin Only)',
+      render: (row) => <span className="font-bold text-slate-900">{formatCurrency(row.total_worth)}</span>
+    },
+    {
+      header: 'Assigned Employee & Payout',
+      render: (row) => (
+        <div>
+          {row.assigned_employee_name ? (
+            <span className="font-medium text-slate-800 text-xs flex items-center gap-1">
+              <UserCheck className="w-3.5 h-3.5 text-brand-500" /> {row.assigned_employee_name}
+            </span>
+          ) : (
+            <span className="text-xs text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded-md">Unassigned</span>
+          )}
+          {row.assigned_amount !== undefined ? (
+            <p className="text-[11px] text-brand-600 font-bold">Employee Payout: {formatCurrency(row.assigned_amount)}</p>
+          ) : null}
+        </div>
+      )
+    },
+    {
+      header: 'Status',
+      render: (row) => (
+        <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${getStatusBadge(row.status)}`}>
+          {row.status}
+        </span>
+      )
+    },
+    {
+      header: 'Credentials',
+      render: (row) => (
+        row.has_credentials ? (
+          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+            <ShieldCheck className="w-3 h-3" /> Submitted
+          </span>
+        ) : (
+          <span className="text-[10px] text-gray-400">Pending</span>
+        )
+      )
+    },
+    {
+      header: 'Actions',
+      render: (row) => (
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => navigate(`/admin/projects/${row.id}`)}
+            title="View Details"
+            className="p-1.5 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleOpenEdit(row)}
+            title="Edit Project & Assignment"
+            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            <Edit className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleDelete(row)}
+            title="Delete Project"
+            className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      )
+    }
+  ];
+
+  return (
+    <div className="p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
+      <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
+
+      {/* Header & Controls */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800">Project Management & Assignment</h2>
+          <p className="text-xs text-gray-400">Create, assign web/app projects to developers, set component costs, and track payouts</p>
+        </div>
+        <button
+          onClick={handleOpenCreate}
+          className="flex items-center gap-2 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-brand-500/20 transition-all"
+        >
+          <FolderPlus className="w-4 h-4" />
+          <span>Assign / Add New Project</span>
+        </button>
+      </div>
+
+      {/* Filters Bar */}
+      <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-card flex flex-wrap items-center gap-4 text-xs font-medium">
+        <div>
+          <label className="text-gray-400 block mb-1">Status Filter</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none"
+          >
+            <option value="all">All Statuses</option>
+            <option value="Ongoing">Ongoing</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-gray-400 block mb-1">Project Type</label>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none"
+          >
+            <option value="all">All Project Types</option>
+            <option value="Static Website">Static Website</option>
+            <option value="Dynamic Website">Dynamic Website</option>
+            <option value="E-Commerce Website">E-Commerce Website</option>
+            <option value="Multi Dynamic Website">Multi Dynamic Website</option>
+            <option value="Android App">Android App</option>
+            <option value="iOS App">iOS App</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-gray-400 block mb-1">Sort By</label>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none"
+          >
+            <option value="created_at">Creation Date</option>
+            <option value="total_worth">Total Worth</option>
+            <option value="client_name">Client Name</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-gray-400 block mb-1">Order</label>
+          <select
+            value={order}
+            onChange={(e) => setOrder(e.target.value)}
+            className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none"
+          >
+            <option value="DESC">Descending</option>
+            <option value="ASC">Ascending</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Table */}
+      <DataTable
+        columns={columns}
+        data={projects}
+        loading={loading}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search project name, client, or employee..."
+        pagination={pagination}
+        onPageChange={(p) => fetchProjects(p)}
+      />
+
+      {/* Modal: Create & Assign Project Form */}
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={selectedProject ? 'Edit Project & Assignment' : 'Assign / Add Project to Employee'}
+        maxWidth="max-w-2xl"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Privacy Note */}
+          <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 flex items-center gap-2">
+            <Info className="w-4 h-4 shrink-0 text-blue-600" />
+            <span>
+              <strong>Privacy Gate:</strong> Total Client Project Worth (₹) auto-fills from component costs and is visible <u>only</u> on Super Admin Dashboard. Assigned employees see only their manually entered payout amount (₹).
+            </span>
+          </div>
+
+          {/* Project Name & Client Details Section */}
+          <div className="p-3.5 bg-orange-50/50 rounded-xl border border-brand-100 space-y-2.5">
+            <h4 className="text-[11px] font-bold text-brand-700 uppercase tracking-wider">1. Project & Client Information</h4>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Project Name *</label>
+              <input
+                type="text"
+                required
+                value={formData.projectName}
+                onChange={(e) => setFormData({ ...formData, projectName: e.target.value })}
+                placeholder="e.g. Sri Sai Agriculture E-Commerce Portal"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:border-brand-500"
+              />
+            </div>
+
+            {!selectedProject && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-0.5">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Client Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.clientName}
+                    onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
+                    placeholder="Company Name"
+                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Client Email *</label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.clientEmail}
+                    onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
+                    placeholder="email@client.com"
+                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Client Mobile *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.clientMobile}
+                    onChange={(e) => setFormData({ ...formData, clientMobile: e.target.value })}
+                    placeholder="+91 9876543210"
+                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Web & App Selection with Dynamic Component Costs -> Auto-fills Total Client Project Worth */}
+          <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+            <h4 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
+              2. Project Category & Component Costs (Auto-populates Total Client Project Worth)
+            </h4>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Web Project Dropdown */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                  <Code className="w-3.5 h-3.5 text-brand-500" /> Web Project Type
+                </label>
+                <select
+                  value={formData.webType}
+                  onChange={(e) => setFormData({ ...formData, webType: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-brand-500"
+                >
+                  {WEB_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* App Project Dropdown */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-brand-500" /> App Project Type
+                </label>
+                <select
+                  value={formData.appType}
+                  onChange={(e) => setFormData({ ...formData, appType: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-brand-500"
+                >
+                  {APP_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Dynamic Cost Fields for Component Breakdown */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-gray-200/60">
+              {/* Dynamic Web Cost Input */}
+              {formData.webType !== 'None' ? (
+                <div>
+                  <label className="block text-xs font-semibold text-brand-600 mb-1">
+                    {formData.webType} Component Cost (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.webCost}
+                    onChange={(e) => handleWebCostChange(e.target.value)}
+                    placeholder={`e.g. 15000 for ${formData.webType}`}
+                    className="w-full px-3 py-2 bg-white border border-brand-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+              ) : (
+                <div className="text-xs text-gray-400 italic flex items-center">Web development not selected.</div>
+              )}
+
+              {/* Dynamic App Cost Input */}
+              {formData.appType !== 'None' ? (
+                <div>
+                  <label className="block text-xs font-semibold text-purple-600 mb-1">
+                    {formData.appType} Component Cost (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.appCost}
+                    onChange={(e) => handleAppCostChange(e.target.value)}
+                    placeholder={`e.g. 20000 for ${formData.appType}`}
+                    className="w-full px-3 py-2 bg-white border border-purple-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+              ) : (
+                <div className="text-xs text-gray-400 italic flex items-center">App development not selected.</div>
+              )}
+            </div>
+          </div>
+
+          {/* Dedicated Employee Payout Field & Client Project Worth */}
+          <div className="p-3.5 bg-brand-50/60 rounded-xl border border-brand-200 space-y-3">
+            <h4 className="text-[11px] font-bold text-brand-800 uppercase tracking-wider flex items-center gap-1.5">
+              <IndianRupee className="w-4 h-4" /> 3. Employee Assigned Payout & Client Pricing
+            </h4>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Manual Employee Payout Input Field */}
+              <div>
+                <label className="block text-xs font-bold text-brand-700 mb-1">
+                  Amount Employee Will Get From Us (₹) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={formData.employeePayout}
+                  onChange={(e) => setFormData({ ...formData, employeePayout: e.target.value })}
+                  placeholder="Enter manual amount e.g. 12000"
+                  className="w-full px-3 py-2 bg-white border-2 border-brand-400 rounded-lg text-xs font-bold text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20 shadow-xs"
+                />
+                <span className="text-[10px] text-brand-600 block mt-0.5">Manually entered employee payout.</span>
+              </div>
+
+              {/* Total Client Project Worth (Auto-calculated from component costs) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Total Client Project Worth (₹) * <span className="text-[10px] text-gray-400 font-normal">(Auto-calculated / Editable)</span>
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="500"
+                  value={formData.totalWorth}
+                  onChange={(e) => setFormData({ ...formData, totalWorth: e.target.value })}
+                  placeholder="50000"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-brand-500"
+                />
+                <span className="text-[10px] text-gray-400 block mt-0.5">Auto-fills from component costs above.</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Employee Selection Dropdown */}
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
+              Assign To Employee * <span className="text-[10px] text-gray-400 font-normal lowercase">(all current & future employees)</span>
+            </label>
+            <select
+              required
+              value={formData.employeeId}
+              onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-brand-300 rounded-lg text-xs font-medium focus:outline-none focus:border-brand-500"
+            >
+              <option value="">-- Choose Employee --</option>
+              {employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name} ({e.employee_id})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Remarks */}
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 uppercase mb-1">Assignment Remarks / Instructions</label>
+            <textarea
+              rows="2"
+              value={formData.remarks}
+              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+              placeholder="e.g. Develop full e-commerce store with Android app integration"
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-brand-500"
+            ></textarea>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 text-xs font-semibold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-md shadow-brand-500/20"
+            >
+              {selectedProject ? 'Save Changes' : 'Confirm & Assign Project'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+}
