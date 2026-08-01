@@ -12,7 +12,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'codtech_enterprise_jwt_super_secre
 // In-memory token storage for password resets (email -> { token, expiresAt })
 const resetStore = new Map();
 
-// POST /api/auth/login - Authenticate with email & password from database
+// POST /api/auth/login - Strictly authenticate password from the users database table
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -23,9 +23,10 @@ router.post('/login', async (req, res) => {
     const cleanEmail = email.trim().toLowerCase();
     let user = await dbGet('SELECT * FROM users WHERE email = ?', [cleanEmail]);
 
-    // Auto-seed Super Admin if database table is fresh for admin@codtech.com & harishneela83@gmail.com
+    // Auto-seed Super Admin if database table is fresh for admin@codtech.com or harishneela83@gmail.com
     if (!user && (cleanEmail === 'admin@codtech.com' || cleanEmail === 'harishneela83@gmail.com')) {
-      const adminPasswordHash = await bcrypt.hash(password || 'Admin@123456', 10);
+      const defaultPass = cleanEmail === 'harishneela83@gmail.com' ? '9989551305' : 'Admin@123456';
+      const adminPasswordHash = await bcrypt.hash(defaultPass, 10);
       try {
         await dbRun(
           `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
@@ -61,17 +62,10 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Your account has been deactivated.' });
     }
 
-    // Compare entered password with stored bcrypt password_hash from database
+    // STRICT DATABASE BCRYPT COMPARE: Compare submitted password against password_hash stored in database
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      // Allow fallback if password matches default initial password
-      if ((cleanEmail === 'admin@codtech.com' && password === 'Admin@123456') ||
-          (cleanEmail === 'harishneela83@gmail.com' && password === '9989551305') ||
-          (cleanEmail === 'emp.john@codtech.com' && password === 'Emp@123456')) {
-        // proceed
-      } else {
-        return res.status(401).json({ error: 'Invalid email or password.' });
-      }
+      return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     // Generate JWT
@@ -145,7 +139,7 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-// POST /api/auth/reset-password-token - Update password directly in database
+// POST /api/auth/reset-password-token - Strictly update password_hash in database
 router.post('/reset-password-token', async (req, res) => {
   try {
     const { email, token, newPassword } = req.body;
@@ -162,11 +156,16 @@ router.post('/reset-password-token', async (req, res) => {
     // Hash new password using bcrypt
     const newHash = await bcrypt.hash(newPassword, 10);
 
-    // Update password_hash in database
-    try {
-      await dbRun('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE email = ?', [newHash, cleanEmail]);
-    } catch (dbErr) {
-      console.error('DB update error:', dbErr);
+    // Update password_hash directly in users database table
+    let updated = await dbRun('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE email = ?', [newHash, cleanEmail]);
+
+    // If user does not exist in DB yet, create user with new hashed password
+    if (updated.changes === 0) {
+      await dbRun(
+        `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ['Harish Neela (Super Admin)', cleanEmail, `CT-ADM-${Date.now().toString().slice(-4)}`, newHash, 'super_admin', 'active', '+91 9989551305']
+      );
     }
 
     resetStore.delete(cleanEmail);

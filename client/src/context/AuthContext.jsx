@@ -35,55 +35,14 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const cleanEmail = (email || '').trim().toLowerCase();
     
-    // First try live backend API
-    try {
-      const res = await api.post('/auth/login', { email: cleanEmail, password });
-      const { token: jwtToken, user: userData } = res.data;
-      setToken(jwtToken);
-      setUser(userData);
-      localStorage.setItem('codtech_token', jwtToken);
-      localStorage.setItem('codtech_user', JSON.stringify(userData));
-      return userData;
-    } catch (err) {
-      console.warn('Backend API login response:', err.response?.data || err.message);
-      
-      // Fail-safe authentication for default admin, harishneela83@gmail.com & employee credentials
-      if (cleanEmail === 'admin@codtech.com' || cleanEmail === 'harishneela83@gmail.com') {
-        const defaultAdmin = {
-          id: 1,
-          name: 'Harish Neela (Super Admin)',
-          email: cleanEmail,
-          role: 'super_admin',
-          employee_id: 'CT-ADM-001',
-          status: 'active'
-        };
-        const mockToken = 'mock_admin_jwt_token_2026';
-        setToken(mockToken);
-        setUser(defaultAdmin);
-        localStorage.setItem('codtech_token', mockToken);
-        localStorage.setItem('codtech_user', JSON.stringify(defaultAdmin));
-        return defaultAdmin;
-      }
-
-      if (cleanEmail === 'emp.john@codtech.com') {
-        const defaultEmp = {
-          id: 2,
-          name: 'John Doe',
-          email: 'emp.john@codtech.com',
-          role: 'employee',
-          employee_id: 'CT-EMP-101',
-          status: 'active'
-        };
-        const mockToken = 'mock_emp_jwt_token_2026';
-        setToken(mockToken);
-        setUser(defaultEmp);
-        localStorage.setItem('codtech_token', mockToken);
-        localStorage.setItem('codtech_user', JSON.stringify(defaultEmp));
-        return defaultEmp;
-      }
-
-      throw err;
-    }
+    // Authenticate strictly against live database API
+    const res = await api.post('/auth/login', { email: cleanEmail, password });
+    const { token: jwtToken, user: userData } = res.data;
+    setToken(jwtToken);
+    setUser(userData);
+    localStorage.setItem('codtech_token', jwtToken);
+    localStorage.setItem('codtech_user', JSON.stringify(userData));
+    return userData;
   };
 
   const logout = () => {
