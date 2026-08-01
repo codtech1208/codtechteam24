@@ -39,21 +39,6 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    // Auto-seed Employee if record is missing in database
-    if (!user && cleanEmail === 'emp.john@codtech.com') {
-      const empPasswordHash = await bcrypt.hash('Emp@123456', 10);
-      try {
-        await dbRun(
-          `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          ['John Doe', 'emp.john@codtech.com', 'CT-EMP-101', empPasswordHash, 'employee', 'active', '+91 9123456789']
-        );
-        user = await dbGet('SELECT * FROM users WHERE email = ?', ['emp.john@codtech.com']);
-      } catch (seedErr) {
-        console.error('Auto-seed employee error:', seedErr);
-      }
-    }
-
     if (!user || !user.password_hash) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
