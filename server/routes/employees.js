@@ -27,7 +27,32 @@ router.get('/', requireAdmin, async (req, res) => {
 
     query += ` ORDER BY created_at DESC`;
 
-    const employees = await dbAll(query, params);
+    let employees = await dbAll(query, params);
+
+    // Auto-seed default active employees if table is empty after server restart or fresh deploy
+    if (!employees || employees.length === 0) {
+      const empPasswordHash = await bcrypt.hash('Emp@123456', 10);
+      try {
+        await dbRun(
+          `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
+           VALUES (?, ?, ?, ?, 'employee', 'active', ?)`,
+          ['John Doe', 'emp.john@codtech.com', 'CT-EMP-101', empPasswordHash, '+91 9123456789']
+        );
+        await dbRun(
+          `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
+           VALUES (?, ?, ?, ?, 'employee', 'active', ?)`,
+          ['Sarah Smith', 'emp.sarah@codtech.com', 'CT-EMP-102', empPasswordHash, '+91 9988776655']
+        );
+        await dbRun(
+          `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
+           VALUES (?, ?, ?, ?, 'employee', 'active', ?)`,
+          ['Alex Johnson', 'emp.alex@codtech.com', 'CT-EMP-103', empPasswordHash, '+91 9765432109']
+        );
+        employees = await dbAll(query, params);
+      } catch (seedErr) {
+        console.error('Employee auto-seed error:', seedErr);
+      }
+    }
 
     // Attach stats for each employee
     const enriched = await Promise.all(

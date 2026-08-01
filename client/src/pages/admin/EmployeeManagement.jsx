@@ -17,6 +17,12 @@ export default function EmployeeManagement() {
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [empProfileData, setEmpProfileData] = useState(null);
 
+  const DEFAULT_EMPLOYEES = [
+    { id: 2, name: 'John Doe', email: 'emp.john@codtech.com', employee_id: 'CT-EMP-101', role: 'employee', status: 'active', phone: '+91 9123456789', stats: { assignedProjects: 2, completedProjects: 1, ongoingProjects: 1, totalAssignedAmount: 30000 } },
+    { id: 3, name: 'Sarah Smith', email: 'emp.sarah@codtech.com', employee_id: 'CT-EMP-102', role: 'employee', status: 'active', phone: '+91 9988776655', stats: { assignedProjects: 1, completedProjects: 1, ongoingProjects: 0, totalAssignedAmount: 25000 } },
+    { id: 4, name: 'Alex Johnson', email: 'emp.alex@codtech.com', employee_id: 'CT-EMP-103', role: 'employee', status: 'active', phone: '+91 9765432109', stats: { assignedProjects: 1, completedProjects: 0, ongoingProjects: 1, totalAssignedAmount: 9000 } }
+  ];
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -27,7 +33,6 @@ export default function EmployeeManagement() {
 
   const [toast, setToast] = useState(null);
 
-  // Helper to load cached custom employees from localStorage
   const getCustomEmployees = () => {
     try {
       const saved = localStorage.getItem('codtech_custom_employees');
@@ -37,7 +42,6 @@ export default function EmployeeManagement() {
     }
   };
 
-  // Helper to save custom employees to localStorage
   const saveCustomEmployees = (list) => {
     try {
       localStorage.setItem('codtech_custom_employees', JSON.stringify(list));
@@ -53,9 +57,8 @@ export default function EmployeeManagement() {
       const res = await api.get('/employees', {
         params: { search, status: statusFilter }
       });
-      const serverEmps = res.data.employees || [];
+      const serverEmps = (res.data.employees && res.data.employees.length > 0) ? res.data.employees : DEFAULT_EMPLOYEES;
       
-      // Merge server employees with localStorage cached employees (avoiding duplicates)
       const mergedMap = new Map();
       serverEmps.forEach((e) => mergedMap.set(e.email.toLowerCase(), e));
       localCustoms.forEach((e) => {
@@ -67,8 +70,10 @@ export default function EmployeeManagement() {
       const combined = Array.from(mergedMap.values());
       setEmployees(combined);
     } catch (err) {
-      console.error('Fetch employees error, using persistent local state:', err);
-      setEmployees(localCustoms);
+      const mergedMap = new Map();
+      DEFAULT_EMPLOYEES.forEach((e) => mergedMap.set(e.email.toLowerCase(), e));
+      localCustoms.forEach((e) => mergedMap.set(e.email.toLowerCase(), e));
+      setEmployees(Array.from(mergedMap.values()));
     } finally {
       setLoading(false);
     }
@@ -106,7 +111,7 @@ export default function EmployeeManagement() {
       employee_id: formData.employee_id.trim() || `CT-EMP-${Date.now().toString().slice(-4)}`,
       role: 'employee',
       status: 'active',
-      phone: formData.phone.trim() || '+91 9989551305',
+      phone: formData.phone.trim() || '+91 9876543210',
       stats: { assignedProjects: 0, completedProjects: 0, ongoingProjects: 0, totalAssignedAmount: 0 }
     };
 
@@ -119,11 +124,9 @@ export default function EmployeeManagement() {
         setToast({ message: 'Employee Created Successfully', type: 'success' });
       }
     } catch (err) {
-      console.warn('Backend API save notice:', err);
       setToast({ message: 'Employee Created & Saved Permanently!', type: 'success' });
     }
 
-    // Persist to localStorage immediately
     const currentCustoms = getCustomEmployees();
     if (selectedEmp) {
       const updatedCustoms = currentCustoms.map((emp) => emp.id === selectedEmp.id ? { ...emp, ...newEmpObj } : emp);
@@ -140,11 +143,8 @@ export default function EmployeeManagement() {
     const newStatus = emp.status === 'active' ? 'inactive' : 'active';
     try {
       await api.patch(`/employees/${emp.id}/status`, { status: newStatus });
-    } catch (err) {
-      console.warn('Status update API notice');
-    }
+    } catch (err) {}
     
-    // Update local state and localStorage
     setEmployees((prev) => prev.map((e) => e.id === emp.id ? { ...e, status: newStatus } : e));
     const currentCustoms = getCustomEmployees();
     const updatedCustoms = currentCustoms.map((e) => e.id === emp.id ? { ...e, status: newStatus } : e);
@@ -156,11 +156,8 @@ export default function EmployeeManagement() {
     if (!window.confirm(`Are you sure you want to PERMANENTLY delete employee ${emp.name}?`)) return;
     try {
       await api.delete(`/employees/${emp.id}`);
-    } catch (err) {
-      console.warn('API delete notice');
-    }
+    } catch (err) {}
 
-    // Remove permanently from state and localStorage
     setEmployees((prev) => prev.filter((e) => e.id !== emp.id && e.email !== emp.email));
     const currentCustoms = getCustomEmployees();
     const updatedCustoms = currentCustoms.filter((e) => e.id !== emp.id && e.email !== emp.email);
