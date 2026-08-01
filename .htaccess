@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Redirect to client/dist/ if accessing root
+  RewriteCond %{REQUEST_URI} !^/client/dist/
+  RewriteCond %{DOCUMENT_ROOT}/client/dist%{REQUEST_URI} -f [OR]
+  RewriteCond %{DOCUMENT_ROOT}/client/dist%{REQUEST_URI} -d
+  RewriteRule ^(.*)$ /client/dist/$1 [L]
+
+  # Single Page Application routing
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /client/dist/index.html [L]
+</IfModule>

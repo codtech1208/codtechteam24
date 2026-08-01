@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { initDatabase } = require('./config/db');
 
 const authRoutes = require('./routes/auth');
@@ -40,6 +41,19 @@ app.use('/api/logs', logRoutes);
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy', app: 'CODTECH TEAM Management API', timestamp: new Date() });
+});
+
+// Serve frontend static files in production
+const clientBuildPath = path.join(__dirname, '../client/dist');
+app.use(express.static(clientBuildPath));
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(clientBuildPath, 'index.html'), (err) => {
+      if (err) {
+        res.status(200).send('CODTECH TEAM System Server Active');
+      }
+    });
+  }
 });
 
 // Global error handler
