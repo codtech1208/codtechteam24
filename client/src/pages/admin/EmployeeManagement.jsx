@@ -17,7 +17,7 @@ export default function EmployeeManagement() {
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [empProfileData, setEmpProfileData] = useState(null);
 
-  const DEFAULT_EMPLOYEES = [
+  const INITIAL_DEFAULT_EMPLOYEES = [
     { id: 2, name: 'John Doe', email: 'emp.john@codtech.com', employee_id: 'CT-EMP-101', role: 'employee', status: 'active', phone: '+91 9123456789', stats: { assignedProjects: 2, completedProjects: 1, ongoingProjects: 1, totalAssignedAmount: 30000 } },
     { id: 3, name: 'Sarah Smith', email: 'emp.sarah@codtech.com', employee_id: 'CT-EMP-102', role: 'employee', status: 'active', phone: '+91 9988776655', stats: { assignedProjects: 1, completedProjects: 1, ongoingProjects: 0, totalAssignedAmount: 25000 } },
     { id: 4, name: 'Alex Johnson', email: 'emp.alex@codtech.com', employee_id: 'CT-EMP-103', role: 'employee', status: 'active', phone: '+91 9765432109', stats: { assignedProjects: 1, completedProjects: 0, ongoingProjects: 1, totalAssignedAmount: 9000 } }
@@ -33,6 +33,25 @@ export default function EmployeeManagement() {
 
   const [toast, setToast] = useState(null);
 
+  // Helper to load deleted employee identifiers
+  const getDeletedEmployees = () => {
+    try {
+      const saved = localStorage.getItem('codtech_deleted_employees');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const addDeletedEmployee = (emailStr, idStr) => {
+    const list = getDeletedEmployees();
+    const cleanE = (emailStr || '').toLowerCase();
+    if (!list.includes(cleanE)) list.push(cleanE);
+    if (idStr && !list.includes(String(idStr))) list.push(String(idStr));
+    localStorage.setItem('codtech_deleted_employees', JSON.stringify(list));
+  };
+
+  // Helper to load custom employees
   const getCustomEmployees = () => {
     try {
       const saved = localStorage.getItem('codtech_custom_employees');
@@ -52,28 +71,60 @@ export default function EmployeeManagement() {
 
   const fetchEmployees = async () => {
     setLoading(true);
+    const deletedList = getDeletedEmployees();
     const localCustoms = getCustomEmployees();
+
     try {
       const res = await api.get('/employees', {
         params: { search, status: statusFilter }
       });
-      const serverEmps = (res.data.employees && res.data.employees.length > 0) ? res.data.employees : DEFAULT_EMPLOYEES;
+      const serverEmps = res.data.employees || [];
       
       const mergedMap = new Map();
-      serverEmps.forEach((e) => mergedMap.set(e.email.toLowerCase(), e));
-      localCustoms.forEach((e) => {
-        if (!mergedMap.has(e.email.toLowerCase())) {
+      
+      // Add initial defaults if not explicitly deleted
+      INITIAL_DEFAULT_EMPLOYEES.forEach((e) => {
+        if (!deletedList.includes(e.email.toLowerCase()) && !deletedList.includes(String(e.id))) {
           mergedMap.set(e.email.toLowerCase(), e);
         }
       });
 
-      const combined = Array.from(mergedMap.values());
+      // Add server employees if not explicitly deleted
+      serverEmps.forEach((e) => {
+        if (!deletedList.includes(e.email.toLowerCase()) && !deletedList.includes(String(e.id))) {
+          mergedMap.set(e.email.toLowerCase(), e);
+        }
+      });
+
+      // Add local customs if not explicitly deleted
+      localCustoms.forEach((e) => {
+        if (!deletedList.includes(e.email.toLowerCase()) && !deletedList.includes(String(e.id))) {
+          mergedMap.set(e.email.toLowerCase(), e);
+        }
+      });
+
+      let combined = Array.from(mergedMap.values());
+      if (statusFilter && statusFilter !== 'all') {
+        combined = combined.filter((e) => e.status === statusFilter);
+      }
       setEmployees(combined);
     } catch (err) {
       const mergedMap = new Map();
-      DEFAULT_EMPLOYEES.forEach((e) => mergedMap.set(e.email.toLowerCase(), e));
-      localCustoms.forEach((e) => mergedMap.set(e.email.toLowerCase(), e));
-      setEmployees(Array.from(mergedMap.values()));
+      INITIAL_DEFAULT_EMPLOYEES.forEach((e) => {
+        if (!deletedList.includes(e.email.toLowerCase()) && !deletedList.includes(String(e.id))) {
+          mergedMap.set(e.email.toLowerCase(), e);
+        }
+      });
+      localCustoms.forEach((e) => {
+        if (!deletedList.includes(e.email.toLowerCase()) && !deletedList.includes(String(e.id))) {
+          mergedMap.set(e.email.toLowerCase(), e);
+        }
+      });
+      let combined = Array.from(mergedMap.values());
+      if (statusFilter && statusFilter !== 'all') {
+        combined = combined.filter((e) => e.status === statusFilter);
+      }
+      setEmployees(combined);
     } finally {
       setLoading(false);
     }
@@ -152,17 +203,28 @@ export default function EmployeeManagement() {
     setToast({ message: `Employee status changed to ${newStatus}`, type: 'info' });
   };
 
+  // PERMANENT DELETION METHOD
   const handleDelete = async (emp) => {
     if (!window.confirm(`Are you sure you want to PERMANENTLY delete employee ${emp.name}?`)) return;
+
+    // 1. Add to permanent blacklist
+    addDeletedEmployee(emp.email, emp.id);
+
+    // 2. Remove from custom localStorage
+    const currentCustoms = getCustomEmployees();
+    const updatedCustoms = currentCustoms.filter((e) => e.id !== emp.id && e.email !== emp.email);
+    saveCustomEmployees(updatedCustoms);
+
+    // 3. Remove from UI state immediately
+    setEmployees((prev) => prev.filter((e) => e.id !== emp.id && e.email !== emp.email));
+
+    // 4. API delete call
     try {
       await api.delete(`/employees/${emp.id}`);
     } catch (err) {}
 
-    setEmployees((prev) => prev.filter((e) => e.id !== emp.id && e.email !== emp.email));
-    const currentCustoms = getCustomEmployees();
-    const updatedCustoms = currentCustoms.filter((e) => e.id !== emp.id && e.email !== emp.email);
-    saveCustomEmployees(updatedCustoms);
     setToast({ message: `Employee ${emp.name} Permanently Deleted`, type: 'success' });
+    fetchEmployees();
   };
 
   const handleViewProfile = async (emp) => {
@@ -257,7 +319,7 @@ export default function EmployeeManagement() {
           </button>
           <button
             onClick={() => handleDelete(row)}
-            title="Delete Employee"
+            title="Delete Employee Permanently"
             className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
           >
             <Trash2 className="w-4 h-4" />
