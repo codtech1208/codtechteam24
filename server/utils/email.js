@@ -18,9 +18,9 @@ const transporter = nodemailer.createTransport({
 });
 
 /**
- * Send Password Reset Email with Direct Link & OTP Code
+ * Send Password Reset Email with Direct Clickable Link
  */
-async function sendPasswordResetEmail(toEmail, userName, otpCode, resetToken) {
+async function sendPasswordResetEmail(toEmail, userName, resetToken) {
   const domain = 'https://codtechteam.com';
   const resetLink = `${domain}/#/reset-password?email=${encodeURIComponent(toEmail)}&token=${resetToken}`;
 
@@ -36,27 +36,23 @@ async function sendPasswordResetEmail(toEmail, userName, otpCode, resetToken) {
       <div style="background-color: white; padding: 32px; border-radius: 12px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
         <h2 style="color: #0f172a; margin-top: 0; font-size: 20px;">Password Reset Request</h2>
         <p style="color: #475569; font-size: 14px; line-height: 1.6;">Hello <strong>${userName}</strong>,</p>
-        <p style="color: #475569; font-size: 14px; line-height: 1.6;">We received a request to reset your password for your <strong>CODTECH TEAM Enterprise</strong> account.</p>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">We received a password reset request for your <strong>CODTECH TEAM Enterprise</strong> account.</p>
 
         <!-- Big Clickable Button -->
-        <div style="margin: 28px 0; text-align: center;">
+        <div style="margin: 32px 0; text-align: center;">
           <a href="${resetLink}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #FF6B00 0%, #ea580c 100%); color: #ffffff; padding: 16px 36px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 10px 15px -3px rgba(255, 107, 0, 0.3);">
-            👉 CLICK HERE TO RESET YOUR PASSWORD
+            👉 RESET PASSWORD NOW
           </a>
         </div>
 
         <p style="color: #64748b; font-size: 12px; text-align: center; margin-bottom: 24px;">
-          Or copy & paste this link in your browser:<br/>
+          Or copy and paste this link in your browser:<br/>
           <a href="${resetLink}" style="color: #ea580c; word-break: break-all;">${resetLink}</a>
         </p>
 
-        <!-- 6-digit OTP section -->
-        <div style="margin-top: 24px; padding: 16px; background-color: #fff7ed; border: 1px dashed #fdba74; border-radius: 12px; text-align: center;">
-          <p style="color: #c2410c; font-size: 11px; font-weight: bold; text-transform: uppercase; margin: 0 0 4px 0;">Alternatively, use this 6-digit OTP code:</p>
-          <span style="font-family: monospace; font-size: 26px; font-weight: bold; letter-spacing: 5px; color: #ea580c;">${otpCode}</span>
-        </div>
-
-        <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">If you did not request a password reset, please ignore this email or notify your Super Admin immediately.</p>
+        <p style="color: #94a3b8; font-size: 12px; margin-top: 24px; border-t: 1px solid #f1f5f9; padding-top: 16px;">
+          This reset link will expire in 1 hour. If you did not request this, please ignore this email.
+        </p>
       </div>
 
       <div style="text-align: center; margin-top: 24px; color: #94a3b8; font-size: 12px;">
@@ -68,7 +64,7 @@ async function sendPasswordResetEmail(toEmail, userName, otpCode, resetToken) {
   return await transporter.sendMail({
     from: SMTP_FROM,
     to: toEmail,
-    subject: `🔗 Password Reset Link for CODTECH TEAM (${userName})`,
+    subject: `🔐 Reset Your Password - CODTECH TEAM`,
     html: htmlContent
   });
 }

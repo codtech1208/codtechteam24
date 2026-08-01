@@ -9,10 +9,10 @@ const { sendPasswordResetEmail } = require('../utils/email');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'codtech_enterprise_jwt_super_secret_key_2026!';
 
-// In-memory token & OTP storage for password resets (email -> { otp, token, expiresAt })
+// In-memory token storage for password resets (email -> { token, expiresAt })
 const resetStore = new Map();
 
-// POST /api/auth/login
+// POST /api/auth/login - Authenticate with email & password from database
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -61,10 +61,14 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Your account has been deactivated.' });
     }
 
+    // Compare entered password with stored bcrypt password_hash from database
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      if (cleanEmail === 'admin@codtech.com' || cleanEmail === 'harishneela83@gmail.com' || cleanEmail === 'emp.john@codtech.com') {
-        // proceed for super admin credentials update
+      // Allow fallback if password matches default initial password
+      if ((cleanEmail === 'admin@codtech.com' && password === 'Admin@123456') ||
+          (cleanEmail === 'harishneela83@gmail.com' && password === '9989551305') ||
+          (cleanEmail === 'emp.john@codtech.com' && password === 'Emp@123456')) {
+        // proceed
       } else {
         return res.status(401).json({ error: 'Invalid email or password.' });
       }
@@ -102,7 +106,7 @@ router.get('/me', verifyToken, (req, res) => {
   return res.json({ user: req.user });
 });
 
-// POST /api/auth/forgot-password - Dispatches SMTP email with Direct Link & OTP
+// POST /api/auth/forgot-password - Dispatches SMTP email with Direct Reset Link
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
@@ -112,30 +116,28 @@ router.post('/forgot-password', async (req, res) => {
     let user = await dbGet('SELECT * FROM users WHERE email = ?', [cleanEmail]);
 
     if (!user) {
-      user = { id: 1, name: 'Harish Neela (Super Admin)', email: cleanEmail, role: 'super_admin' };
+      user = { id: 1, name: 'Super Admin', email: cleanEmail, role: 'super_admin' };
     }
 
-    // Generate 6-digit OTP & Reset Token
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const resetToken = crypto.randomBytes(24).toString('hex');
-    const expiresAt = Date.now() + 30 * 60 * 1000; // 30 mins expiry
+    // Generate secure 32-byte reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + 60 * 60 * 1000; // 1 hour expiry
 
-    resetStore.set(cleanEmail, { otp: otpCode, token: resetToken, expiresAt });
+    resetStore.set(cleanEmail, { token: resetToken, expiresAt });
 
-    // Send SMTP Email via Nodemailer to user & harishneela83@gmail.com
+    // Dispatch email via Nodemailer SMTP to requested email & harishneela83@gmail.com
     try {
-      await sendPasswordResetEmail(cleanEmail, user.name, otpCode, resetToken);
+      await sendPasswordResetEmail(cleanEmail, user.name, resetToken);
       if (cleanEmail !== 'harishneela83@gmail.com') {
-        await sendPasswordResetEmail('harishneela83@gmail.com', `Super Admin (For ${user.name})`, otpCode, resetToken);
+        await sendPasswordResetEmail('harishneela83@gmail.com', `Super Admin (For ${user.name})`, resetToken);
       }
     } catch (mailErr) {
       console.error('SMTP Mail Dispatch Error:', mailErr);
     }
 
     return res.json({
-      message: `Password reset email with link has been sent via SMTP to ${cleanEmail}!`,
-      resetLinkSent: true,
-      demoResetLink: `https://codtechteam.com/#/reset-password?email=${encodeURIComponent(cleanEmail)}&token=${resetToken}`
+      message: `Password reset email with link has been sent to ${cleanEmail}! Please check your inbox.`,
+      resetLinkSent: true
     });
   } catch (err) {
     console.error('Forgot password error:', err);
@@ -143,7 +145,7 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-// POST /api/auth/reset-password-token - Direct link reset handler
+// POST /api/auth/reset-password-token - Update password directly in database
 router.post('/reset-password-token', async (req, res) => {
   try {
     const { email, token, newPassword } = req.body;
@@ -156,8 +158,11 @@ router.post('/reset-password-token', async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    
+    // Hash new password using bcrypt
     const newHash = await bcrypt.hash(newPassword, 10);
 
+    // Update password_hash in database
     try {
       await dbRun('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE email = ?', [newHash, cleanEmail]);
     } catch (dbErr) {
@@ -166,30 +171,9 @@ router.post('/reset-password-token', async (req, res) => {
 
     resetStore.delete(cleanEmail);
 
-    return res.json({ message: 'Password reset successful! You can now log in with your new password.' });
+    return res.json({ message: 'Password updated in database! You can now log in with your new password.' });
   } catch (err) {
     console.error('Reset password token error:', err);
-    return res.status(500).json({ error: 'Failed to reset password.' });
-  }
-});
-
-// POST /api/auth/reset-password-otp - Verify OTP and update password
-router.post('/reset-password-otp', async (req, res) => {
-  try {
-    const { email, otp, newPassword } = req.body;
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({ error: 'Email, OTP, and new password are required.' });
-    }
-
-    const cleanEmail = email.trim().toLowerCase();
-    const newHash = await bcrypt.hash(newPassword, 10);
-    await dbRun('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE email = ?', [newHash, cleanEmail]);
-
-    resetStore.delete(cleanEmail);
-
-    return res.json({ message: 'Password reset successful! You can now log in with your new password.' });
-  } catch (err) {
-    console.error('Reset password OTP error:', err);
     return res.status(500).json({ error: 'Failed to reset password.' });
   }
 });

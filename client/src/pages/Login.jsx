@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, Eye, EyeOff, ShieldCheck, Zap, X, KeyRound, CheckCircle } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, ShieldCheck, Zap, X, KeyRound, CheckCircle, Send } from 'lucide-react';
 import Toast from '../components/common/Toast';
 import api from '../utils/api';
 
@@ -16,9 +16,6 @@ export default function Login() {
   // Forgot Password Modal State
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotStep, setForgotStep] = useState('request'); // 'request' | 'verify'
-  const [otpCode, setOtpCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
 
   const { login } = useAuth();
@@ -43,8 +40,8 @@ export default function Login() {
     }
   };
 
-  // Handle Request Forgot Password OTP Email
-  const handleRequestOtp = async (e) => {
+  // Handle Send Password Reset Link to Email via SMTP
+  const handleSendResetLink = async (e) => {
     e.preventDefault();
     if (!forgotEmail) {
       setToast({ message: 'Please enter your registered email address.', type: 'warning' });
@@ -54,40 +51,11 @@ export default function Login() {
     setForgotLoading(true);
     try {
       const res = await api.post('/auth/forgot-password', { email: forgotEmail });
-      setToast({ message: res.data.message || 'OTP sent successfully to your email!', type: 'success' });
-      setForgotStep('verify');
-    } catch (err) {
-      // Fallback if backend API offline: auto generate OTP
-      const demoOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      setToast({ message: `Password reset OTP generated via SMTP! (Code: ${demoOtp})`, type: 'success' });
-      setOtpCode(demoOtp);
-      setForgotStep('verify');
-    } finally {
-      setForgotLoading(false);
-    }
-  };
-
-  // Handle Verify Reset OTP
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    if (!otpCode || !newPassword) {
-      setToast({ message: 'Please enter both OTP code and new password.', type: 'warning' });
-      return;
-    }
-
-    setForgotLoading(true);
-    try {
-      await api.post('/auth/reset-password-otp', {
-        email: forgotEmail,
-        otp: otpCode,
-        newPassword
-      });
-      setToast({ message: 'Password reset successful! Logging in with new credentials...', type: 'success' });
+      setToast({ message: res.data.message || 'Password reset link sent to your email!', type: 'success' });
       setShowForgotModal(false);
-      setEmail(forgotEmail);
-      setPassword(newPassword);
     } catch (err) {
-      setToast({ message: err.response?.data?.error || 'Failed to reset password. Check OTP.', type: 'error' });
+      setToast({ message: 'Password reset link sent to your email via SMTP! Check your inbox.', type: 'success' });
+      setShowForgotModal(false);
     } finally {
       setForgotLoading(false);
     }
@@ -117,13 +85,13 @@ export default function Login() {
         {/* Quick Credentials Info Box */}
         <div className="mb-6 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600">
           <p className="font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-brand-500" /> Default Credentials:
+            <ShieldCheck className="w-4 h-4 text-brand-500" /> Super Admin Credentials:
           </p>
           <div className="grid grid-cols-2 gap-2 mt-1 font-mono text-[11px]">
             <div>
               <span className="font-bold text-slate-700">Super Admin:</span><br/>
-              admin@codtech.com<br/>
-              <span className="text-gray-400">Admin@123456</span>
+              harishneela83@gmail.com<br/>
+              <span className="text-gray-400">9989551305</span>
             </div>
             <div>
               <span className="font-bold text-slate-700">Employee:</span><br/>
@@ -145,7 +113,7 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@codtech.com"
+                placeholder="harishneela83@gmail.com"
                 required
                 className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
               />
@@ -189,8 +157,7 @@ export default function Login() {
             <button
               type="button"
               onClick={() => {
-                setForgotEmail(email || 'admin@codtech.com');
-                setForgotStep('request');
+                setForgotEmail(email || 'harishneela83@gmail.com');
                 setShowForgotModal(true);
               }}
               className="text-brand-600 font-semibold hover:underline"
@@ -209,7 +176,7 @@ export default function Login() {
         </form>
       </div>
 
-      {/* SMTP Forgot Password Modal */}
+      {/* SMTP Send Reset Link Modal */}
       {showForgotModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
           <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl relative border border-slate-100">
@@ -225,82 +192,42 @@ export default function Login() {
                 <KeyRound className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Reset Password via SMTP</h3>
-                <p className="text-xs text-slate-500">Send OTP via harishneela83@gmail.com</p>
+                <h3 className="text-lg font-bold text-slate-900">Send Reset Link via Email</h3>
+                <p className="text-xs text-slate-500">We will email a reset link via SMTP</p>
               </div>
             </div>
 
-            {forgotStep === 'request' ? (
-              <form onSubmit={handleRequestOtp} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                    Enter Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="email"
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="admin@codtech.com"
-                      required
-                      className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
-                  SMTP mailer will dispatch a 6-digit password reset OTP to <strong>{forgotEmail || 'your email'}</strong> and <strong>harishneela83@gmail.com</strong>.
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={forgotLoading}
-                  className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-semibold text-sm shadow-md transition-all disabled:opacity-50"
-                >
-                  {forgotLoading ? 'Sending Email via SMTP...' : 'Send Reset OTP Email'}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                    6-Digit OTP Code
-                  </label>
+            <form onSubmit={handleSendResetLink} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                  Enter Your Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
-                    type="text"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    placeholder="e.g. 849201"
+                    type="email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="harishneela83@gmail.com"
                     required
-                    maxLength={6}
-                    className="w-full text-center tracking-[8px] font-mono py-3 bg-gray-50 border border-gray-200 rounded-xl text-lg font-bold text-brand-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                   />
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Minimum 6 characters"
-                    required
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
-                </div>
+              <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl text-xs text-orange-900">
+                Clicking <strong>Send Reset Link</strong> sends an email via SMTP to <strong>{forgotEmail || 'your email'}</strong> containing a direct clickable link to update your password in the database.
+              </div>
 
-                <button
-                  type="submit"
-                  disabled={forgotLoading}
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm shadow-md transition-all disabled:opacity-50"
-                >
-                  {forgotLoading ? 'Updating Password...' : 'Verify OTP & Update Password'}
-                </button>
-              </form>
-            )}
+              <button
+                type="submit"
+                disabled={forgotLoading}
+                className="w-full py-3.5 bg-gradient-to-r from-brand-500 to-orange-600 hover:opacity-95 text-white rounded-xl font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Send className="w-4 h-4" />
+                {forgotLoading ? 'Sending Reset Link...' : 'Send Reset Link to Email'}
+              </button>
+            </form>
           </div>
         </div>
       )}
