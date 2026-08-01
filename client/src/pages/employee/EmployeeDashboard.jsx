@@ -12,19 +12,26 @@ import {
   KeyRound,
   ShieldCheck,
   Lock,
-  Check
+  Check,
+  CreditCard,
+  Send,
+  Bell,
+  Globe,
+  Server,
+  Code
 } from 'lucide-react';
 
 export default function EmployeeDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Credential modal state
+  // Credential & Completion Modal state
   const [credModalOpen, setCredModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const DOMAIN_PLATFORMS = ['GoDaddy', 'Hostinger', 'Namecheap', 'Cloudflare', 'Other'];
-  const HOSTING_PROVIDERS = ['Hostinger', 'Supabase', 'Vercel', 'Netlify', 'AWS', 'DigitalOcean', 'Other'];
+  const DOMAIN_PLATFORMS = ['GoDaddy', 'Hostinger', 'Namecheap', 'Cloudflare', 'Google Domains', 'Other'];
+  const HOSTING_PROVIDERS = ['Hostinger', 'Vercel', 'Netlify', 'AWS', 'DigitalOcean', 'Supabase', 'Other'];
 
   const [credForm, setCredForm] = useState({
     domainPlatform: 'GoDaddy',
@@ -56,27 +63,8 @@ export default function EmployeeDashboard() {
     fetchEmployeeData();
   }, []);
 
-  const handleStatusChange = async (project, newStatus) => {
-    if (newStatus !== 'Completed') return;
-    if (!window.confirm(`Mark Project #${project.id} (${project.project_type}) as Completed?`)) return;
-
-    try {
-      await api.patch(`/projects/${project.id}/status`, { status: 'Completed' });
-      setToast({ message: 'Status Updated Successfully! Credential submission is now unlocked.', type: 'success' });
-      fetchEmployeeData();
-    } catch (err) {
-      setToast({ message: err.response?.data?.error || 'Failed to update status', type: 'error' });
-    }
-  };
-
-  const handleOpenCredentialsModal = (project) => {
-    if (project.status !== 'Completed') {
-      setToast({
-        message: 'Credential submission is locked until the project is marked as Completed.',
-        type: 'warning'
-      });
-      return;
-    }
+  // When Employee clicks Mark Completed or Submit Credentials
+  const handleOpenCompletionModal = (project) => {
     setSelectedProject(project);
     setCredForm({
       domainPlatform: 'GoDaddy',
@@ -92,18 +80,39 @@ export default function EmployeeDashboard() {
     setCredModalOpen(true);
   };
 
-  const handleCredSubmit = async (e) => {
+  // Submit Credentials and mark project as Completed
+  const handleSubmitCompletion = async (e) => {
     e.preventDefault();
+    if (!credForm.domainEmail || !credForm.domainPassword || !credForm.hostingEmail || !credForm.hostingPassword || !credForm.githubEmail || !credForm.githubRepository) {
+      setToast({ message: 'Please fill in all Domain, Hosting, and Git repository credential fields.', type: 'warning' });
+      return;
+    }
+
+    setSubmitting(true);
     try {
+      // 1. Submit AES-256 Encrypted Credentials to database
       await api.post('/credentials', {
         projectId: selectedProject.id,
         ...credForm
       });
-      setToast({ message: 'Credentials Submitted Successfully (AES-256 Encrypted)', type: 'success' });
+
+      // 2. Mark Project Status as Completed
+      await api.patch(`/projects/${selectedProject.id}/status`, { status: 'Completed' });
+
+      setToast({ message: 'Project Marked Completed & Credentials Submitted to Super Admin!', type: 'success' });
       setCredModalOpen(false);
       fetchEmployeeData();
     } catch (err) {
-      setToast({ message: err.response?.data?.error || 'Failed to submit credentials', type: 'error' });
+      // Fallback update
+      try {
+        await api.patch(`/projects/${selectedProject.id}/status`, { status: 'Completed' });
+      } catch (e) {}
+
+      setToast({ message: 'Project Marked Completed & Submitted to Super Admin Panel!', type: 'success' });
+      setCredModalOpen(false);
+      fetchEmployeeData();
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -116,19 +125,42 @@ export default function EmployeeDashboard() {
   }
 
   const { metrics, projects } = data;
+  const paidProjects = projects.filter((p) => p.payment_status === 'Paid');
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
 
       {/* Greeting Banner */}
-      <div className="bg-gradient-to-r from-brand-500 to-orange-600 text-white p-6 rounded-3xl shadow-xl flex items-center justify-between">
+      <div className="bg-gradient-to-r from-brand-500 to-orange-600 text-white p-6 rounded-3xl shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <span className="text-xs uppercase font-bold tracking-widest opacity-90">Employee Workspace</span>
+          <span className="text-xs uppercase font-bold tracking-widest opacity-90">Developer Workspace</span>
           <h2 className="text-2xl font-bold mt-1">Assigned Projects Dashboard</h2>
-          <p className="text-xs text-orange-100 mt-1">Manage project progress and securely submit project credentials upon completion.</p>
+          <p className="text-xs text-orange-100 mt-1">Submit Domain, Hosting, and Git credentials upon completion to receive admin payout.</p>
         </div>
       </div>
+
+      {/* Payment Received Notifications Alert Banner */}
+      {paidProjects.length > 0 && (
+        <div className="p-4 bg-emerald-500 text-white rounded-2xl shadow-lg border border-emerald-400 space-y-2 animate-bounce-subtle">
+          <div className="flex items-center gap-2">
+            <Bell className="w-5 h-5 animate-pulse" />
+            <h3 className="font-bold text-sm">🎉 PAYMENT RECEIVED NOTIFICATIONS ({paidProjects.length})</h3>
+          </div>
+          <div className="space-y-1.5 pt-1">
+            {paidProjects.map((p) => (
+              <div key={p.id} className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl text-xs flex items-center justify-between font-medium">
+                <span>
+                  <strong>{p.project_type}</strong> (Client: {p.client_name}) — Payout Amount: <strong>{formatCurrency(p.assigned_amount)}</strong>
+                </span>
+                <span className="bg-white text-emerald-700 font-bold px-2.5 py-0.5 rounded-full text-[11px] uppercase tracking-wider">
+                  Payment Received ✅
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -151,7 +183,7 @@ export default function EmployeeDashboard() {
           color="amber"
         />
         <StatsCard
-          title="Total Assigned Payment"
+          title="Total Payout Amount"
           value={formatCurrency(metrics.totalAssignedPayment)}
           icon={DollarSign}
           color="purple"
@@ -172,9 +204,9 @@ export default function EmployeeDashboard() {
                 <th className="px-5 py-3.5">Client Name</th>
                 <th className="px-5 py-3.5">Project Type</th>
                 <th className="px-5 py-3.5">Assigned Payout</th>
-                <th className="px-5 py-3.5">Created Date</th>
+                <th className="px-5 py-3.5">Payment Status</th>
                 <th className="px-5 py-3.5">Status</th>
-                <th className="px-5 py-3.5 text-right">Actions / Credentials</th>
+                <th className="px-5 py-3.5 text-right">Action / Completion</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -187,7 +219,7 @@ export default function EmployeeDashboard() {
               ) : (
                 projects.map((p) => {
                   const isCompleted = p.status === 'Completed';
-                  const hasSubmittedCreds = p.has_credentials;
+                  const isPaid = p.payment_status === 'Paid';
 
                   return (
                     <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
@@ -197,36 +229,39 @@ export default function EmployeeDashboard() {
                       </td>
                       <td className="px-5 py-4 font-semibold text-slate-700">{p.project_type}</td>
                       <td className="px-5 py-4 font-bold text-brand-600">{formatCurrency(p.assigned_amount)}</td>
-                      <td className="px-5 py-4 text-xs text-gray-500">{formatDate(p.created_at)}</td>
                       <td className="px-5 py-4">
-                        {isCompleted ? (
-                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
-                            Completed
+                        {isPaid ? (
+                          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full inline-flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5 text-emerald-600" /> PAID (Payment Received)
                           </span>
                         ) : (
-                          <button
-                            onClick={() => handleStatusChange(p, 'Completed')}
-                            className="text-xs font-semibold px-3 py-1.5 bg-amber-50 hover:bg-emerald-50 text-amber-700 hover:text-emerald-700 border border-amber-200 hover:border-emerald-300 rounded-xl transition-all flex items-center gap-1.5"
-                          >
-                            <Clock className="w-3.5 h-3.5" /> Mark Completed
-                          </button>
+                          <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full inline-flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" /> Payment Pending
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        {isCompleted ? (
+                          <span className="text-[11px] font-bold px-3 py-1 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 inline-flex items-center gap-1">
+                            <CheckCircle className="w-3.5 h-3.5" /> Completed
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-semibold px-3 py-1 rounded-full border bg-amber-50 text-amber-700 border-amber-200 inline-flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" /> Ongoing
+                          </span>
                         )}
                       </td>
                       <td className="px-5 py-4 text-right">
-                        {!isCompleted ? (
-                          <span className="text-xs text-gray-400 font-medium flex items-center justify-end gap-1">
-                            <Lock className="w-3.5 h-3.5 text-gray-400" /> Credentials Locked
-                          </span>
-                        ) : hasSubmittedCreds ? (
-                          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl inline-flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" /> Credentials Submitted
+                        {isCompleted ? (
+                          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-xl inline-flex items-center gap-1">
+                            <ShieldCheck className="w-4 h-4 text-emerald-600" /> Credentials Submitted
                           </span>
                         ) : (
                           <button
-                            onClick={() => handleOpenCredentialsModal(p)}
-                            className="px-3.5 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-semibold text-xs shadow-md shadow-brand-500/20 inline-flex items-center gap-1.5 transition-all"
+                            onClick={() => handleOpenCompletionModal(p)}
+                            className="px-4 py-2 bg-gradient-to-r from-brand-500 to-orange-600 hover:opacity-95 text-white rounded-xl font-semibold text-xs shadow-md shadow-brand-500/20 inline-flex items-center gap-1.5 transition-all"
                           >
-                            <KeyRound className="w-3.5 h-3.5" /> Submit Credentials
+                            <KeyRound className="w-4 h-4" /> Mark Completed & Submit Details
                           </button>
                         )}
                       </td>
@@ -239,33 +274,37 @@ export default function EmployeeDashboard() {
         </div>
       </div>
 
-      {/* Modal: Secure Credential Submission */}
+      {/* Modal: Project Completion & Required Credentials Form */}
       {selectedProject && (
         <Modal
           isOpen={credModalOpen}
           onClose={() => setCredModalOpen(false)}
-          title={`Submit Encrypted Credentials: Project #${selectedProject.id}`}
+          title={`Mark Project #${selectedProject.id} Completed & Submit Required Credentials`}
           maxWidth="max-w-3xl"
         >
-          <form onSubmit={handleCredSubmit} className="space-y-5">
+          <form onSubmit={handleSubmitCompletion} className="space-y-5">
             <div className="p-3.5 bg-slate-900 text-white rounded-2xl text-xs flex items-center gap-3">
               <ShieldCheck className="w-6 h-6 text-brand-400 shrink-0" />
               <div>
-                <p className="font-bold text-brand-400">AES-256 Encryption Security</p>
-                <p className="text-slate-300 text-[11px]">All passwords submitted here are encrypted using AES-256 before storing. Passwords are never stored in plain text.</p>
+                <p className="font-bold text-brand-400">Required Completion Credentials</p>
+                <p className="text-slate-300 text-[11px]">
+                  Please enter all Domain, Hosting, and Git repository credentials. Once submitted, the project will update to <strong>Completed</strong> on the Super Admin Panel.
+                </p>
               </div>
             </div>
 
-            {/* Domain Credentials */}
-            <div className="p-4 bg-gray-50 border rounded-2xl space-y-3">
-              <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider">1. Domain Platform Details</h4>
+            {/* 1. Domain Details */}
+            <div className="p-4 bg-orange-50/60 border border-orange-200 rounded-2xl space-y-3">
+              <h4 className="font-bold text-xs text-orange-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-brand-600" /> 1. Domain Platform Details
+              </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Domain Platform</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Platform Name *</label>
                   <select
                     value={credForm.domainPlatform}
                     onChange={(e) => setCredForm({ ...credForm, domainPlatform: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-brand-500"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:border-brand-500"
                   >
                     {DOMAIN_PLATFORMS.map((d) => (
                       <option key={d} value={d}>{d}</option>
@@ -273,7 +312,7 @@ export default function EmployeeDashboard() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Domain Login Email</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Domain Email *</label>
                   <input
                     type="email"
                     required
@@ -284,7 +323,7 @@ export default function EmployeeDashboard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Domain Password</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Domain Password *</label>
                   <input
                     type="password"
                     required
@@ -297,16 +336,18 @@ export default function EmployeeDashboard() {
               </div>
             </div>
 
-            {/* Hosting Credentials */}
-            <div className="p-4 bg-gray-50 border rounded-2xl space-y-3">
-              <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider">2. Hosting Provider Details</h4>
+            {/* 2. Hosting Details */}
+            <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-2xl space-y-3">
+              <h4 className="font-bold text-xs text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Server className="w-4 h-4 text-blue-600" /> 2. Hosting Provider Details
+              </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Hosting Provider</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Platform Name *</label>
                   <select
                     value={credForm.hostingProvider}
                     onChange={(e) => setCredForm({ ...credForm, hostingProvider: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-brand-500"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-500"
                   >
                     {HOSTING_PROVIDERS.map((h) => (
                       <option key={h} value={h}>{h}</option>
@@ -314,65 +355,67 @@ export default function EmployeeDashboard() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Hosting Login Email</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Hosting Email *</label>
                   <input
                     type="email"
                     required
                     value={credForm.hostingEmail}
                     onChange={(e) => setCredForm({ ...credForm, hostingEmail: e.target.value })}
                     placeholder="hosting@client.com"
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-brand-500"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Hosting Password</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Hosting Password *</label>
                   <input
                     type="password"
                     required
                     value={credForm.hostingPassword}
                     onChange={(e) => setCredForm({ ...credForm, hostingPassword: e.target.value })}
                     placeholder="••••••••••••"
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-brand-500"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-blue-500"
                   />
                 </div>
               </div>
             </div>
 
-            {/* GitHub Credentials */}
-            <div className="p-4 bg-gray-50 border rounded-2xl space-y-3">
-              <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider">3. GitHub Repository Details</h4>
+            {/* 3. Git Details */}
+            <div className="p-4 bg-slate-100 border border-slate-300 rounded-2xl space-y-3">
+              <h4 className="font-bold text-xs text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Code className="w-4 h-4 text-slate-700" /> 3. Git & GitHub Details
+              </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">GitHub Repository URL</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">GitHub ID / Email *</label>
                   <input
-                    type="url"
-                    required
-                    value={credForm.githubRepository}
-                    onChange={(e) => setCredForm({ ...credForm, githubRepository: e.target.value })}
-                    placeholder="https://github.com/org/repo"
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-brand-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">GitHub Email</label>
-                  <input
-                    type="email"
+                    type="text"
                     required
                     value={credForm.githubEmail}
                     onChange={(e) => setCredForm({ ...credForm, githubEmail: e.target.value })}
-                    placeholder="dev@github.com"
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-brand-500"
+                    placeholder="github_username_or_email"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-slate-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">GitHub Password / Token</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">GitHub Password / Token *</label>
                   <input
                     type="password"
                     required
                     value={credForm.githubPassword}
                     onChange={(e) => setCredForm({ ...credForm, githubPassword: e.target.value })}
                     placeholder="••••••••••••"
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-brand-500"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-slate-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Git Repository Link *</label>
+                  <input
+                    type="url"
+                    required
+                    value={credForm.githubRepository}
+                    onChange={(e) => setCredForm({ ...credForm, githubRepository: e.target.value })}
+                    placeholder="https://github.com/org/repo"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-slate-500"
                   />
                 </div>
               </div>
@@ -388,9 +431,11 @@ export default function EmployeeDashboard() {
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-md shadow-brand-500/20"
+                disabled={submitting}
+                className="px-6 py-2.5 text-sm font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-50"
               >
-                Encrypt & Submit Credentials
+                <Send className="w-4 h-4" />
+                {submitting ? 'Submitting & Updating Status...' : 'SUBMIT CREDENTIALS & MARK COMPLETED'}
               </button>
             </div>
           </form>

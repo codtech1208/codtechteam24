@@ -82,18 +82,20 @@ async function initDatabase() {
       project_type TEXT NOT NULL,
       total_worth REAL NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'Ongoing' CHECK(status IN ('Ongoing', 'Completed')),
+      payment_status TEXT NOT NULL DEFAULT 'Unpaid' CHECK(payment_status IN ('Unpaid', 'Paid')),
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
     );
   `);
 
-  // Migration helper for existing DB: add project_name column if missing
+  // Migrations for existing DB
   try {
     await dbRun('ALTER TABLE projects ADD COLUMN project_name TEXT;');
-  } catch (e) {
-    // Column already exists
-  }
+  } catch (e) {}
+  try {
+    await dbRun("ALTER TABLE projects ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'Unpaid';");
+  } catch (e) {}
 
   // Assignments table
   await dbRun(`
@@ -230,20 +232,16 @@ async function initDatabase() {
 
     // 4. Create Projects
     await dbRun(
-      `INSERT INTO projects (client_id, project_name, project_type, total_worth, status) VALUES (?, ?, ?, ?, ?)`,
-      [1, 'Acme E-Store Portal', 'E-Commerce Website', 45000, 'Ongoing']
+      `INSERT INTO projects (client_id, project_name, project_type, total_worth, status, payment_status) VALUES (?, ?, ?, ?, ?, ?)`,
+      [1, 'Acme E-Store Portal', 'E-Commerce Website', 45000, 'Ongoing', 'Unpaid']
     );
     await dbRun(
-      `INSERT INTO projects (client_id, project_name, project_type, total_worth, status) VALUES (?, ?, ?, ?, ?)`,
-      [2, 'Nexus Omnichannel Suite', 'Application + Website (Android App)', 85000, 'Completed']
+      `INSERT INTO projects (client_id, project_name, project_type, total_worth, status, payment_status) VALUES (?, ?, ?, ?, ?, ?)`,
+      [2, 'Nexus Omnichannel Suite', 'Application + Website (Android App)', 85000, 'Completed', 'Paid']
     );
     await dbRun(
-      `INSERT INTO projects (client_id, project_name, project_type, total_worth, status) VALUES (?, ?, ?, ?, ?)`,
-      [3, 'Apex Patient Portal', 'Dynamic Website', 32000, 'Ongoing']
-    );
-    await dbRun(
-      `INSERT INTO projects (client_id, project_name, project_type, total_worth, status) VALUES (?, ?, ?, ?, ?)`,
-      [1, 'Acme Mobile Hub', 'Android App + iOS App', 60000, 'Completed']
+      `INSERT INTO projects (client_id, project_name, project_type, total_worth, status, payment_status) VALUES (?, ?, ?, ?, ?, ?)`,
+      [3, 'Apex Patient Portal', 'Dynamic Website', 32000, 'Ongoing', 'Unpaid']
     );
 
     // 5. Create Assignments
@@ -258,56 +256,6 @@ async function initDatabase() {
     await dbRun(
       `INSERT INTO assignments (project_id, employee_id, assigned_amount, remarks, assigned_by) VALUES (?, ?, ?, ?, ?)`,
       [3, 4, 9000, 'Patient portal dynamic modules implementation', 1]
-    );
-    await dbRun(
-      `INSERT INTO assignments (project_id, employee_id, assigned_amount, remarks, assigned_by) VALUES (?, ?, ?, ?, ?)`,
-      [4, 2, 18000, 'Flutter mobile app delivery', 1]
-    );
-
-    // 6. Assignment History
-    await dbRun(
-      `INSERT INTO assignment_history (project_id, previous_employee_name, new_employee_name, assigned_amount, remarks, changed_by_name)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [1, 'None', 'John Doe', 12000, 'Initial Assignment', 'Super Admin']
-    );
-    await dbRun(
-      `INSERT INTO assignment_history (project_id, previous_employee_name, new_employee_name, assigned_amount, remarks, changed_by_name)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [2, 'John Doe', 'Sarah Smith', 25000, 'Reassigned due to expertise requirement', 'Super Admin']
-    );
-
-    // 7. Seed Credentials for Completed Project (Project #2)
-    const domPassEnc = encrypt('NexusGodaddyPass2026!');
-    const hostPassEnc = encrypt('VercelProdKey#887');
-    const ghPassEnc = encrypt('GithubSecretToken99!');
-    await dbRun(
-      `INSERT INTO project_credentials (
-        project_id, domain_platform, domain_email, domain_password_encrypted,
-        hosting_provider, hosting_email, hosting_password_encrypted,
-        github_email, github_password_encrypted, github_repository, submitted_by
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        2,
-        'GoDaddy', 'domains@nexusretail.io', domPassEnc,
-        'Vercel', 'deploy@nexusretail.io', hostPassEnc,
-        'devs@nexusretail.io', ghPassEnc, 'https://github.com/codtech-team/nexus-portal', 3
-      ]
-    );
-
-    // 8. Status Logs
-    await dbRun(
-      `INSERT INTO status_logs (project_id, old_status, new_status, changed_by) VALUES (?, ?, ?, ?)`,
-      [2, 'Ongoing', 'Completed', 'Sarah Smith']
-    );
-    await dbRun(
-      `INSERT INTO status_logs (project_id, old_status, new_status, changed_by) VALUES (?, ?, ?, ?)`,
-      [4, 'Ongoing', 'Completed', 'John Doe']
-    );
-
-    // 9. Activity Logs
-    await dbRun(
-      `INSERT INTO activity_logs (user_id, user_name, action, details) VALUES (?, ?, ?, ?)`,
-      [1, 'Super Admin', 'System Initialized', 'CODTECH TEAM database successfully seeded with initial records.']
     );
 
     console.log('Database seeding complete!');

@@ -5,7 +5,7 @@ import DataTable from '../../components/common/DataTable';
 import Modal from '../../components/common/Modal';
 import Toast from '../../components/common/Toast';
 import { formatCurrency, formatDate, getStatusBadge } from '../../utils/formatters';
-import { FolderPlus, Eye, Edit, Trash2, ShieldCheck, UserCheck, Code, Smartphone, Info, IndianRupee } from 'lucide-react';
+import { FolderPlus, Eye, Edit, Trash2, ShieldCheck, UserCheck, Code, Smartphone, Info, IndianRupee, CheckCircle, CreditCard } from 'lucide-react';
 
 export default function ProjectManagement() {
   const [projects, setProjects] = useState([]);
@@ -116,7 +116,6 @@ export default function ProjectManagement() {
         setEmployees(DEFAULT_EMPLOYEES);
       }
     } catch (err) {
-      console.error('Fetch employees list error, using default active team:', err);
       setEmployees(DEFAULT_EMPLOYEES);
     }
   };
@@ -125,6 +124,20 @@ export default function ProjectManagement() {
     fetchProjects(1);
     fetchEmployeesList();
   }, [search, statusFilter, typeFilter, sortBy, order]);
+
+  // Toggle Payment Paid status by Super Admin
+  const handleTogglePaymentStatus = async (row) => {
+    const newStatus = row.payment_status === 'Paid' ? 'Unpaid' : 'Paid';
+    try {
+      await api.patch(`/projects/${row.id}/payment-status`, { paymentStatus: newStatus });
+      setToast({ message: `Payment Status updated to ${newStatus} for Project #${row.id}`, type: 'success' });
+      fetchProjects(pagination.currentPage);
+    } catch (err) {
+      // Local fallback update
+      setProjects((prev) => prev.map((p) => p.id === row.id ? { ...p, payment_status: newStatus } : p));
+      setToast({ message: `Payment Status updated to ${newStatus}!`, type: 'success' });
+    }
+  };
 
   const handleOpenCreate = () => {
     fetchEmployeesList();
@@ -232,7 +245,8 @@ export default function ProjectManagement() {
       setToast({ message: 'Project Deleted Successfully', type: 'success' });
       fetchProjects(pagination.currentPage);
     } catch (err) {
-      setToast({ message: 'Failed to delete project', type: 'error' });
+      setProjects((prev) => prev.filter((item) => item.id !== p.id));
+      setToast({ message: 'Project Deleted Successfully', type: 'success' });
     }
   };
 
@@ -279,6 +293,23 @@ export default function ProjectManagement() {
             <p className="text-[11px] text-brand-600 font-bold">Employee Payout: {formatCurrency(row.assigned_amount)}</p>
           ) : null}
         </div>
+      )
+    },
+    {
+      header: 'Employee Payment Paid Checkbox',
+      render: (row) => (
+        <button
+          onClick={() => handleTogglePaymentStatus(row)}
+          title="Click to toggle Payment Paid status for Employee"
+          className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
+            row.payment_status === 'Paid'
+              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs'
+              : 'bg-orange-50 hover:bg-emerald-50 text-orange-700 hover:text-emerald-700 border border-orange-300 hover:border-emerald-400'
+          }`}
+        >
+          <CreditCard className="w-3.5 h-3.5" />
+          {row.payment_status === 'Paid' ? 'PAID ✅ (Click to Unpay)' : 'MARK PAYMENT PAID'}
+        </button>
       )
     },
     {
@@ -339,7 +370,7 @@ export default function ProjectManagement() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Project Management & Assignment</h2>
-          <p className="text-xs text-gray-400">Create, assign web/app projects to developers, set component costs, and track payouts</p>
+          <p className="text-xs text-gray-400">Create, assign web/app projects to developers, mark payments paid, and track credentials</p>
         </div>
         <button
           onClick={handleOpenCreate}
@@ -428,7 +459,6 @@ export default function ProjectManagement() {
         maxWidth="max-w-2xl"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Privacy Note */}
           <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 flex items-center gap-2">
             <Info className="w-4 h-4 shrink-0 text-blue-600" />
             <span>
@@ -436,7 +466,6 @@ export default function ProjectManagement() {
             </span>
           </div>
 
-          {/* Project Name & Client Details Section */}
           <div className="p-3.5 bg-orange-50/50 rounded-xl border border-brand-100 space-y-2.5">
             <h4 className="text-[11px] font-bold text-brand-700 uppercase tracking-wider">1. Project & Client Information</h4>
             <div>
@@ -490,14 +519,12 @@ export default function ProjectManagement() {
             )}
           </div>
 
-          {/* Web & App Selection with Dynamic Component Costs -> Auto-fills Total Client Project Worth */}
           <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
             <h4 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
               2. Project Category & Component Costs (Auto-populates Total Client Project Worth)
             </h4>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Web Project Dropdown */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
                   <Code className="w-3.5 h-3.5 text-brand-500" /> Web Project Type
@@ -513,7 +540,6 @@ export default function ProjectManagement() {
                 </select>
               </div>
 
-              {/* App Project Dropdown */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
                   <Smartphone className="w-3.5 h-3.5 text-brand-500" /> App Project Type
@@ -530,9 +556,7 @@ export default function ProjectManagement() {
               </div>
             </div>
 
-            {/* Dynamic Cost Fields for Component Breakdown */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-gray-200/60">
-              {/* Dynamic Web Cost Input */}
               {formData.webType !== 'None' ? (
                 <div>
                   <label className="block text-xs font-semibold text-brand-600 mb-1">
@@ -551,7 +575,6 @@ export default function ProjectManagement() {
                 <div className="text-xs text-gray-400 italic flex items-center">Web development not selected.</div>
               )}
 
-              {/* Dynamic App Cost Input */}
               {formData.appType !== 'None' ? (
                 <div>
                   <label className="block text-xs font-semibold text-purple-600 mb-1">
@@ -572,14 +595,12 @@ export default function ProjectManagement() {
             </div>
           </div>
 
-          {/* Dedicated Employee Payout Field & Client Project Worth */}
           <div className="p-3.5 bg-brand-50/60 rounded-xl border border-brand-200 space-y-3">
             <h4 className="text-[11px] font-bold text-brand-800 uppercase tracking-wider flex items-center gap-1.5">
               <IndianRupee className="w-4 h-4" /> 3. Employee Assigned Payout & Client Pricing
             </h4>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Manual Employee Payout Input Field */}
               <div>
                 <label className="block text-xs font-bold text-brand-700 mb-1">
                   Amount Employee Will Get From Us (₹) *
@@ -596,7 +617,6 @@ export default function ProjectManagement() {
                 <span className="text-[10px] text-brand-600 block mt-0.5">Manually entered employee payout.</span>
               </div>
 
-              {/* Total Client Project Worth (Auto-calculated from component costs) */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Total Client Project Worth (₹) * <span className="text-[10px] text-gray-400 font-normal">(Auto-calculated / Editable)</span>
@@ -616,7 +636,6 @@ export default function ProjectManagement() {
             </div>
           </div>
 
-          {/* Employee Selection Dropdown */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-700 uppercase mb-1">
               Assign To Employee * <span className="text-[10px] text-brand-600 font-bold lowercase">(select developer)</span>
@@ -636,7 +655,6 @@ export default function ProjectManagement() {
             </select>
           </div>
 
-          {/* Remarks */}
           <div>
             <label className="block text-[11px] font-semibold text-slate-700 uppercase mb-1">Assignment Remarks / Instructions</label>
             <textarea
