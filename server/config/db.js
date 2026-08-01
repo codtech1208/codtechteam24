@@ -22,31 +22,59 @@ if (DB_HOST && DB_USER && DB_NAME) {
       database: DB_NAME,
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
+      connectTimeout: 5000
     });
     useMySQL = true;
-    console.log(`Connected to Hostinger Remote MySQL Database at ${DB_HOST} (${DB_NAME})`);
+    console.log(`Configured Hostinger MySQL Pool for ${DB_HOST} (${DB_NAME})`);
   } catch (err) {
-    console.error('Failed to initialize MySQL pool, falling back to SQLite:', err);
+    console.error('Failed to initialize MySQL pool, using SQLite:', err);
     useMySQL = false;
   }
 }
 
-// SQLite Fallback
+// SQLite Database Instance
 const dbPath = path.resolve(__dirname, '../database.sqlite');
 const sqliteDb = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Failed to connect to SQLite database:', err);
   } else {
-    console.log('Connected to SQLite fallback database at:', dbPath);
+    console.log('Connected to SQLite database at:', dbPath);
   }
 });
 
-// Universal Database Query Helpers
+// SQLite Promise Wrappers
+const runSqliteRun = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    sqliteDb.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+};
+
+const runSqliteGet = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    sqliteDb.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+};
+
+const runSqliteAll = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    sqliteDb.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+};
+
+// Universal Database Query Helpers with Safe Failover
 const dbRun = async (sql, params = []) => {
   if (useMySQL && mysqlPool) {
     try {
-      // Convert SQLite ? syntax / AUTOINCREMENT syntax to MySQL if necessary
       let mySqlStatement = sql
         .replace(/INTEGER PRIMARY KEY AUTOINCREMENT/gi, 'INT AUTO_INCREMENT PRIMARY KEY')
         .replace(/DATETIME DEFAULT CURRENT_TIMESTAMP/gi, 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
@@ -56,17 +84,13 @@ const dbRun = async (sql, params = []) => {
       const [result] = await mysqlPool.execute(mySqlStatement, params);
       return { lastID: result.insertId, changes: result.affectedRows };
     } catch (err) {
-      // Fallback to SQLite if MySQL fails
+      console.warn('MySQL dbRun failed, executing SQLite fallback:', err.message);
       useMySQL = false;
+      return runSqliteRun(sql, params);
     }
   }
 
-  return new Promise((resolve, reject) => {
-    sqliteDb.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve(this);
-    });
-  });
+  return runSqliteRun(sql, params);
 };
 
 const dbGet = async (sql, params = []) => {
@@ -75,16 +99,13 @@ const dbGet = async (sql, params = []) => {
       const [rows] = await mysqlPool.execute(sql, params);
       return rows[0] || null;
     } catch (err) {
+      console.warn('MySQL dbGet failed, executing SQLite fallback:', err.message);
       useMySQL = false;
+      return runSqliteGet(sql, params);
     }
   }
 
-  return new Promise((resolve, reject) => {
-    sqliteDb.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+  return runSqliteGet(sql, params);
 };
 
 const dbAll = async (sql, params = []) => {
@@ -93,152 +114,149 @@ const dbAll = async (sql, params = []) => {
       const [rows] = await mysqlPool.execute(sql, params);
       return rows;
     } catch (err) {
+      console.warn('MySQL dbAll failed, executing SQLite fallback:', err.message);
       useMySQL = false;
+      return runSqliteAll(sql, params);
     }
   }
 
-  return new Promise((resolve, reject) => {
-    sqliteDb.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+  return runSqliteAll(sql, params);
 };
 
 // Initialize schema and seed data
 async function initDatabase() {
-  if (!useMySQL) {
-    await dbRun('PRAGMA foreign_keys = ON;');
-  }
-
-  // Users table
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
-      email VARCHAR(255) UNIQUE NOT NULL,
-      employee_id VARCHAR(255) UNIQUE NOT NULL,
-      password_hash VARCHAR(255) NOT NULL,
-      role VARCHAR(50) NOT NULL,
-      status VARCHAR(50) NOT NULL DEFAULT 'active',
-      phone VARCHAR(50),
-      avatar VARCHAR(255),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  // Clients table
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS clients (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
-      email VARCHAR(255) NOT NULL,
-      mobile VARCHAR(50) NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  // Projects table
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS projects (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      client_id INT NOT NULL,
-      project_name VARCHAR(255),
-      project_type VARCHAR(255) NOT NULL,
-      total_worth DOUBLE NOT NULL DEFAULT 0,
-      status VARCHAR(50) NOT NULL DEFAULT 'Ongoing',
-      payment_status VARCHAR(50) NOT NULL DEFAULT 'Unpaid',
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  // Assignments table
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS assignments (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      project_id INT NOT NULL UNIQUE,
-      employee_id INT NOT NULL,
-      assigned_amount DOUBLE NOT NULL DEFAULT 0,
-      remarks VARCHAR(255),
-      assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      assigned_by INT
-    );
-  `);
-
-  // Assignment History
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS assignment_history (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      project_id INT NOT NULL,
-      previous_employee_name VARCHAR(255),
-      new_employee_name VARCHAR(255) NOT NULL,
-      assigned_amount DOUBLE NOT NULL,
-      remarks VARCHAR(255),
-      changed_by_name VARCHAR(255) NOT NULL,
-      changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  // Project Credentials Table
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS project_credentials (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      project_id INT NOT NULL UNIQUE,
-      domain_platform VARCHAR(255),
-      domain_email VARCHAR(255),
-      domain_password_encrypted VARCHAR(255),
-      hosting_provider VARCHAR(255),
-      hosting_email VARCHAR(255),
-      hosting_password_encrypted VARCHAR(255),
-      github_email VARCHAR(255),
-      github_password_encrypted VARCHAR(255),
-      github_repository VARCHAR(255),
-      submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      submitted_by INT
-    );
-  `);
-
-  // Status Logs Table
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS status_logs (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      project_id INT NOT NULL,
-      old_status VARCHAR(50) NOT NULL,
-      new_status VARCHAR(50) NOT NULL,
-      changed_by VARCHAR(255) NOT NULL,
-      changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  // Activity Logs Table
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS activity_logs (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT,
-      user_name VARCHAR(255),
-      action VARCHAR(255) NOT NULL,
-      details VARCHAR(255),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  // Credential View Logs Table (Audit)
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS credential_view_logs (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      project_id INT NOT NULL,
-      viewed_by VARCHAR(255) NOT NULL,
-      viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  // Seed Data if Users table is empty
   try {
+    if (!useMySQL) {
+      await runSqliteRun('PRAGMA foreign_keys = ON;');
+    }
+
+    // Users table
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        employee_id VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(50) NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'active',
+        phone VARCHAR(50),
+        avatar VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Clients table
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS clients (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        mobile VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Projects table
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS projects (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        client_id INT NOT NULL,
+        project_name VARCHAR(255),
+        project_type VARCHAR(255) NOT NULL,
+        total_worth DOUBLE NOT NULL DEFAULT 0,
+        status VARCHAR(50) NOT NULL DEFAULT 'Ongoing',
+        payment_status VARCHAR(50) NOT NULL DEFAULT 'Unpaid',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Assignments table
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS assignments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        project_id INT NOT NULL UNIQUE,
+        employee_id INT NOT NULL,
+        assigned_amount DOUBLE NOT NULL DEFAULT 0,
+        remarks VARCHAR(255),
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        assigned_by INT
+      );
+    `);
+
+    // Assignment History
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS assignment_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        project_id INT NOT NULL,
+        previous_employee_name VARCHAR(255),
+        new_employee_name VARCHAR(255) NOT NULL,
+        assigned_amount DOUBLE NOT NULL,
+        remarks VARCHAR(255),
+        changed_by_name VARCHAR(255) NOT NULL,
+        changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Project Credentials Table
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS project_credentials (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        project_id INT NOT NULL UNIQUE,
+        domain_platform VARCHAR(255),
+        domain_email VARCHAR(255),
+        domain_password_encrypted VARCHAR(255),
+        hosting_provider VARCHAR(255),
+        hosting_email VARCHAR(255),
+        hosting_password_encrypted VARCHAR(255),
+        github_email VARCHAR(255),
+        github_password_encrypted VARCHAR(255),
+        github_repository VARCHAR(255),
+        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        submitted_by INT
+      );
+    `);
+
+    // Status Logs Table
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS status_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        project_id INT NOT NULL,
+        old_status VARCHAR(50) NOT NULL,
+        new_status VARCHAR(50) NOT NULL,
+        changed_by VARCHAR(255) NOT NULL,
+        changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Activity Logs Table
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT,
+        user_name VARCHAR(255),
+        action VARCHAR(255) NOT NULL,
+        details VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Credential View Logs Table (Audit)
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS credential_view_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        project_id INT NOT NULL,
+        viewed_by VARCHAR(255) NOT NULL,
+        viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Seed Data if Users table is empty
     const userCount = await dbGet('SELECT COUNT(*) as count FROM users');
-    if (userCount && (userCount.count === 0 || userCount.count === '0')) {
+    if (!userCount || userCount.count === 0 || userCount.count === '0') {
       console.log('Seeding database with default initial data...');
       const adminPasswordHash = await bcrypt.hash('9989551305', 10);
       const empPasswordHash = await bcrypt.hash('Emp@123456', 10);
@@ -272,7 +290,7 @@ async function initDatabase() {
       console.log('Database seeding complete!');
     }
   } catch (err) {
-    console.error('Error during init database seed:', err);
+    console.error('Error during init database:', err);
   }
 }
 
