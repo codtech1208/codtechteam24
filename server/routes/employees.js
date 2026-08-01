@@ -27,32 +27,7 @@ router.get('/', requireAdmin, async (req, res) => {
 
     query += ` ORDER BY created_at DESC`;
 
-    let employees = await dbAll(query, params);
-
-    // Auto-seed default employees if table is empty
-    if (employees.length === 0) {
-      const empPasswordHash = await bcrypt.hash('Emp@123456', 10);
-      try {
-        await dbRun(
-          `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
-           VALUES (?, ?, ?, ?, 'employee', 'active', ?)`,
-          ['John Doe', 'emp.john@codtech.com', 'CT-EMP-101', empPasswordHash, '+91 9123456789']
-        );
-        await dbRun(
-          `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
-           VALUES (?, ?, ?, ?, 'employee', 'active', ?)`,
-          ['Sarah Smith', 'emp.sarah@codtech.com', 'CT-EMP-102', empPasswordHash, '+91 9988776655']
-        );
-        await dbRun(
-          `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
-           VALUES (?, ?, ?, ?, 'employee', 'active', ?)`,
-          ['Alex Johnson', 'emp.alex@codtech.com', 'CT-EMP-103', empPasswordHash, '+91 9765432109']
-        );
-        employees = await dbAll(query, params);
-      } catch (seedErr) {
-        console.error('Employee auto-seed error:', seedErr);
-      }
-    }
+    const employees = await dbAll(query, params);
 
     // Attach stats for each employee
     const enriched = await Promise.all(
@@ -92,7 +67,7 @@ router.get('/', requireAdmin, async (req, res) => {
   }
 });
 
-// GET /api/employees/:id - Get single employee profile with detailed project history
+// GET /api/employees/:id - Get single employee profile
 router.get('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -105,7 +80,6 @@ router.get('/:id', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Employee not found.' });
     }
 
-    // Projects assigned
     const projects = await dbAll(
       `SELECT p.id, p.project_type, p.total_worth, p.status, p.created_at, c.name as client_name, a.assigned_amount, a.assigned_at
        FROM assignments a
@@ -152,7 +126,6 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Name, Email, Employee ID, and Password are required.' });
     }
 
-    // Check duplicate
     const existing = await dbGet('SELECT id FROM users WHERE email = ? OR employee_id = ?', [email.trim().toLowerCase(), employee_id.trim()]);
     if (existing) {
       return res.status(400).json({ error: 'An employee with this Email or Employee ID already exists.' });
@@ -164,16 +137,6 @@ router.post('/', requireAdmin, async (req, res) => {
        VALUES (?, ?, ?, ?, 'employee', 'active', ?)`,
       [name.trim(), email.trim().toLowerCase(), employee_id.trim(), passwordHash, phone ? phone.trim() : null]
     );
-
-    // Audit Log
-    try {
-      await dbRun(
-        'INSERT INTO activity_logs (user_id, user_name, action, details) VALUES (?, ?, ?, ?)',
-        [req.user.id, req.user.name, 'Employee Created', `Created employee ${name} (${employee_id})`]
-      );
-    } catch (e) {
-      // ignore
-    }
 
     return res.status(201).json({ message: 'Employee Created Successfully', employeeId: result.lastID });
   } catch (err) {
@@ -231,15 +194,18 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/employees/:id - Delete Employee (Admin only)
+// DELETE /api/employees/:id - Permanently Delete Employee from Database
 router.delete('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const emp = await dbGet('SELECT name FROM users WHERE id = ? AND role = "employee"', [id]);
     if (!emp) return res.status(404).json({ error: 'Employee not found.' });
 
-    await dbRun('DELETE FROM users WHERE id = ?', [id]);
-    return res.json({ message: 'Employee Deleted Successfully' });
+    // Permanently remove employee and associated assignments from database
+    await dbRun('DELETE FROM assignments WHERE employee_id = ?', [id]);
+    await dbRun('DELETE FROM users WHERE id = ? AND role = "employee"', [id]);
+
+    return res.json({ message: `Employee ${emp.name} permanently deleted from database.` });
   } catch (err) {
     console.error('Delete employee error:', err);
     return res.status(500).json({ error: 'Failed to delete employee.' });

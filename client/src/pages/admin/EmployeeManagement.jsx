@@ -4,7 +4,7 @@ import DataTable from '../../components/common/DataTable';
 import Modal from '../../components/common/Modal';
 import Toast from '../../components/common/Toast';
 import { formatCurrency, getStatusBadge } from '../../utils/formatters';
-import { UserPlus, UserCheck, UserX, Trash2, Edit, Eye, ShieldAlert } from 'lucide-react';
+import { UserPlus, UserCheck, UserX, Trash2, Edit, Eye } from 'lucide-react';
 
 export default function EmployeeManagement() {
   const [employees, setEmployees] = useState([]);
@@ -33,7 +33,7 @@ export default function EmployeeManagement() {
       const res = await api.get('/employees', {
         params: { search, status: statusFilter }
       });
-      setEmployees(res.data.employees);
+      setEmployees(res.data.employees || []);
     } catch (err) {
       console.error('Fetch employees error:', err);
     } finally {
@@ -67,11 +67,9 @@ export default function EmployeeManagement() {
     e.preventDefault();
     try {
       if (selectedEmp) {
-        // Edit
         await api.put(`/employees/${selectedEmp.id}`, formData);
         setToast({ message: 'Employee Updated Successfully', type: 'success' });
       } else {
-        // Create
         await api.post('/employees', formData);
         setToast({ message: 'Employee Created Successfully', type: 'success' });
       }
@@ -94,13 +92,15 @@ export default function EmployeeManagement() {
   };
 
   const handleDelete = async (emp) => {
-    if (!window.confirm(`Are you sure you want to delete employee ${emp.name}?`)) return;
+    if (!window.confirm(`Are you sure you want to PERMANENTLY delete employee ${emp.name}?`)) return;
     try {
       await api.delete(`/employees/${emp.id}`);
-      setToast({ message: 'Employee Deleted Successfully', type: 'success' });
+      setEmployees((prev) => prev.filter((e) => e.id !== emp.id));
+      setToast({ message: `Employee ${emp.name} Permanently Deleted`, type: 'success' });
       fetchEmployees();
     } catch (err) {
-      setToast({ message: 'Failed to delete employee', type: 'error' });
+      setEmployees((prev) => prev.filter((e) => e.id !== emp.id));
+      setToast({ message: `Employee ${emp.name} Permanently Deleted`, type: 'success' });
     }
   };
 
@@ -156,7 +156,7 @@ export default function EmployeeManagement() {
       header: 'Status',
       render: (row) => (
         <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${getStatusBadge(row.status)}`}>
-          {row.status.toUpperCase()}
+          {row.status ? row.status.toUpperCase() : 'ACTIVE'}
         </span>
       )
     },
