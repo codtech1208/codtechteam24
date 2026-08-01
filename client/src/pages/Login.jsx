@@ -27,16 +27,12 @@ export default function Login() {
       const user = await login(email, password);
       setToast({ message: 'Login successful! Redirecting...', type: 'success' });
       setTimeout(() => {
-        if (user.role === 'super_admin') {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/employee/dashboard');
-        }
-      }, 500);
+        const redirectUrl = user.role === 'super_admin' ? '/admin/dashboard' : '/employee/dashboard';
+        window.location.href = redirectUrl;
+      }, 400);
     } catch (err) {
       const msg = err.response?.data?.error || 'Invalid email or password.';
       setToast({ message: msg, type: 'error' });
-    } finally {
       setLoading(false);
     }
   };
