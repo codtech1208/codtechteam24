@@ -12,7 +12,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'codtech_enterprise_jwt_super_secre
 // In-memory token storage for password resets (email -> { token, expiresAt })
 const resetStore = new Map();
 
-// POST /api/auth/login - Resilient Database Authentication for Admin & Employees
+// POST /api/auth/login - Strict Database Authentication via Bcrypt Hash Comparison
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -23,14 +23,15 @@ router.post('/login', async (req, res) => {
     const cleanEmail = email.trim().toLowerCase();
     let user = await dbGet('SELECT * FROM users WHERE email = ?', [cleanEmail]);
 
-    // Auto-seed Super Admin if user record doesn't exist yet
+    // Auto-seed Super Admin if record is missing in database
     if (!user && (cleanEmail === 'admin@codtech.com' || cleanEmail === 'harishneela83@gmail.com')) {
-      const adminPasswordHash = await bcrypt.hash(password || '9989551305', 10);
+      const defaultPass = '9989551305';
+      const adminPasswordHash = await bcrypt.hash(defaultPass, 10);
       try {
         await dbRun(
           `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          ['Harish Neela (Super Admin)', cleanEmail, `CT-ADM-${Date.now().toString().slice(-4)}`, adminPasswordHash, 'super_admin', 'active', '+91 9989551305']
+          ['Harish Neela (Super Admin)', cleanEmail, `CT-ADM-001`, adminPasswordHash, 'super_admin', 'active', '+91 9989551305']
         );
         user = await dbGet('SELECT * FROM users WHERE email = ?', [cleanEmail]);
       } catch (seedErr) {
@@ -38,7 +39,7 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    // Auto-seed Employee if user record doesn't exist yet
+    // Auto-seed Employee if record is missing in database
     if (!user && cleanEmail === 'emp.john@codtech.com') {
       const empPasswordHash = await bcrypt.hash('Emp@123456', 10);
       try {
@@ -53,48 +54,23 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    if (!user) {
-      // Create user on the fly for Super Admin email
-      if (cleanEmail === 'harishneela83@gmail.com' || cleanEmail === 'admin@codtech.com') {
-        user = {
-          id: 1,
-          name: 'Harish Neela (Super Admin)',
-          email: cleanEmail,
-          employee_id: 'CT-ADM-001',
-          role: 'super_admin',
-          status: 'active',
-          phone: '+91 9989551305'
-        };
-      } else {
-        return res.status(401).json({ error: 'Invalid email or password.' });
-      }
+    if (!user || !user.password_hash) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    if (user.status && user.status !== 'active') {
+    if (user.status !== 'active') {
       return res.status(403).json({ error: 'Your account has been deactivated.' });
     }
 
-    // 100% Guaranteed Super Admin Authentication for Localhost & Live Website
-    let isMatch = false;
-    if (cleanEmail === 'harishneela83@gmail.com' || cleanEmail === 'admin@codtech.com') {
-      isMatch = true;
-      try {
-        const freshHash = await bcrypt.hash(password, 10);
-        await dbRun('UPDATE users SET password_hash = ? WHERE email = ?', [freshHash, cleanEmail]);
-      } catch (uErr) {}
-    } else if (cleanEmail === 'emp.john@codtech.com' && (password === 'Emp@123456' || password.length >= 6)) {
-      isMatch = true;
-    } else if (user.password_hash) {
-      isMatch = await bcrypt.compare(password, user.password_hash);
-    }
-
+    // STRICT DATABASE BCRYPT COMPARE: Compare submitted password against hash stored in database
+    const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     // Generate JWT
     const token = jwt.sign(
-      { id: user.id || 1, email: user.email, role: user.role || 'super_admin' },
+      { id: user.id, email: user.email, role: user.role },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -103,13 +79,13 @@ router.post('/login', async (req, res) => {
       message: 'Login successful',
       token,
       user: {
-        id: user.id || 1,
-        name: user.name || 'Harish Neela (Super Admin)',
+        id: user.id,
+        name: user.name,
         email: user.email,
-        employee_id: user.employee_id || 'CT-ADM-001',
-        role: user.role || 'super_admin',
-        status: user.status || 'active',
-        phone: user.phone || '+91 9989551305',
+        employee_id: user.employee_id,
+        role: user.role,
+        status: user.status,
+        phone: user.phone,
         avatar: user.avatar
       }
     });
@@ -188,7 +164,7 @@ router.post('/reset-password-token', async (req, res) => {
       await dbRun(
         `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        ['Harish Neela (Super Admin)', cleanEmail, `CT-ADM-${Date.now().toString().slice(-4)}`, newHash, 'super_admin', 'active', '+91 9989551305']
+        ['Harish Neela (Super Admin)', cleanEmail, `CT-ADM-001`, newHash, 'super_admin', 'active', '+91 9989551305']
       );
     }
 
