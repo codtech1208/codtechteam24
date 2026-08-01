@@ -5,8 +5,12 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('codtech_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('codtech_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   });
   const [token, setToken] = useState(() => localStorage.getItem('codtech_token') || null);
   const [loading, setLoading] = useState(true);
@@ -22,6 +26,8 @@ export function AuthProvider({ children }) {
           console.error('Session check failed:', err);
           logout();
         }
+      } else {
+        setUser(null);
       }
       setLoading(false);
     }
