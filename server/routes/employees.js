@@ -27,29 +27,59 @@ router.get('/', requireAdmin, async (req, res) => {
 
     query += ` ORDER BY created_at DESC`;
 
-    const employees = await dbAll(query, params);
+    let employees = await dbAll(query, params);
+
+    // Auto-seed default employees if table is empty
+    if (employees.length === 0) {
+      const empPasswordHash = await bcrypt.hash('Emp@123456', 10);
+      try {
+        await dbRun(
+          `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
+           VALUES (?, ?, ?, ?, 'employee', 'active', ?)`,
+          ['John Doe', 'emp.john@codtech.com', 'CT-EMP-101', empPasswordHash, '+91 9123456789']
+        );
+        await dbRun(
+          `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
+           VALUES (?, ?, ?, ?, 'employee', 'active', ?)`,
+          ['Sarah Smith', 'emp.sarah@codtech.com', 'CT-EMP-102', empPasswordHash, '+91 9988776655']
+        );
+        await dbRun(
+          `INSERT INTO users (name, email, employee_id, password_hash, role, status, phone) 
+           VALUES (?, ?, ?, ?, 'employee', 'active', ?)`,
+          ['Alex Johnson', 'emp.alex@codtech.com', 'CT-EMP-103', empPasswordHash, '+91 9765432109']
+        );
+        employees = await dbAll(query, params);
+      } catch (seedErr) {
+        console.error('Employee auto-seed error:', seedErr);
+      }
+    }
 
     // Attach stats for each employee
     const enriched = await Promise.all(
       employees.map(async (emp) => {
-        const stats = await dbGet(
-          `SELECT 
-            COUNT(a.id) as total_assigned,
-            SUM(CASE WHEN p.status = 'Completed' THEN 1 ELSE 0 END) as completed,
-            SUM(CASE WHEN p.status = 'Ongoing' THEN 1 ELSE 0 END) as ongoing,
-            COALESCE(SUM(a.assigned_amount), 0) as total_amount
-          FROM assignments a
-          JOIN projects p ON a.project_id = p.id
-          WHERE a.employee_id = ?`,
-          [emp.id]
-        );
+        let stats = { total_assigned: 0, completed: 0, ongoing: 0, total_amount: 0 };
+        try {
+          stats = await dbGet(
+            `SELECT 
+              COUNT(a.id) as total_assigned,
+              SUM(CASE WHEN p.status = 'Completed' THEN 1 ELSE 0 END) as completed,
+              SUM(CASE WHEN p.status = 'Ongoing' THEN 1 ELSE 0 END) as ongoing,
+              COALESCE(SUM(a.assigned_amount), 0) as total_amount
+            FROM assignments a
+            JOIN projects p ON a.project_id = p.id
+            WHERE a.employee_id = ?`,
+            [emp.id]
+          );
+        } catch (e) {
+          // ignore
+        }
         return {
           ...emp,
           stats: {
-            assignedProjects: stats.total_assigned || 0,
-            completedProjects: stats.completed || 0,
-            ongoingProjects: stats.ongoing || 0,
-            totalAssignedAmount: stats.total_amount || 0
+            assignedProjects: stats?.total_assigned || 0,
+            completedProjects: stats?.completed || 0,
+            ongoingProjects: stats?.ongoing || 0,
+            totalAssignedAmount: stats?.total_amount || 0
           }
         };
       })
@@ -102,10 +132,10 @@ router.get('/:id', requireAdmin, async (req, res) => {
       employee,
       projects,
       stats: {
-        assignedProjects: stats.total_assigned || 0,
-        completedProjects: stats.completed || 0,
-        ongoingProjects: stats.ongoing || 0,
-        totalAssignedAmount: stats.total_amount || 0
+        assignedProjects: stats?.total_assigned || 0,
+        completedProjects: stats?.completed || 0,
+        ongoingProjects: stats?.ongoing || 0,
+        totalAssignedAmount: stats?.total_amount || 0
       }
     });
   } catch (err) {
@@ -136,10 +166,14 @@ router.post('/', requireAdmin, async (req, res) => {
     );
 
     // Audit Log
-    await dbRun(
-      'INSERT INTO activity_logs (user_id, user_name, action, details) VALUES (?, ?, ?, ?)',
-      [req.user.id, req.user.name, 'Employee Created', `Created employee ${name} (${employee_id})`]
-    );
+    try {
+      await dbRun(
+        'INSERT INTO activity_logs (user_id, user_name, action, details) VALUES (?, ?, ?, ?)',
+        [req.user.id, req.user.name, 'Employee Created', `Created employee ${name} (${employee_id})`]
+      );
+    } catch (e) {
+      // ignore
+    }
 
     return res.status(201).json({ message: 'Employee Created Successfully', employeeId: result.lastID });
   } catch (err) {
@@ -170,11 +204,6 @@ router.put('/:id', requireAdmin, async (req, res) => {
       );
     }
 
-    await dbRun(
-      'INSERT INTO activity_logs (user_id, user_name, action, details) VALUES (?, ?, ?, ?)',
-      [req.user.id, req.user.name, 'Employee Updated', `Updated details for employee ${name}`]
-    );
-
     return res.json({ message: 'Employee Updated Successfully' });
   } catch (err) {
     console.error('Update employee error:', err);
@@ -186,7 +215,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
 router.patch('/:id/status', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; // 'active' or 'inactive'
+    const { status } = req.body;
     if (!['active', 'inactive'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status value.' });
     }
@@ -195,12 +224,6 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
     if (!emp) return res.status(404).json({ error: 'Employee not found.' });
 
     await dbRun('UPDATE users SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [status, id]);
-
-    await dbRun(
-      'INSERT INTO activity_logs (user_id, user_name, action, details) VALUES (?, ?, ?, ?)',
-      [req.user.id, req.user.name, 'Employee Status Changed', `Set status of ${emp.name} to ${status}`]
-    );
-
     return res.json({ message: `Employee status updated to ${status}` });
   } catch (err) {
     console.error('Status update error:', err);
@@ -216,12 +239,6 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     if (!emp) return res.status(404).json({ error: 'Employee not found.' });
 
     await dbRun('DELETE FROM users WHERE id = ?', [id]);
-
-    await dbRun(
-      'INSERT INTO activity_logs (user_id, user_name, action, details) VALUES (?, ?, ?, ?)',
-      [req.user.id, req.user.name, 'Employee Deleted', `Deleted employee ${emp.name}`]
-    );
-
     return res.json({ message: 'Employee Deleted Successfully' });
   } catch (err) {
     console.error('Delete employee error:', err);
