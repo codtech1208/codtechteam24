@@ -17,12 +17,6 @@ export default function EmployeeManagement() {
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [empProfileData, setEmpProfileData] = useState(null);
 
-  const INITIAL_DEFAULT_EMPLOYEES = [
-    { id: 2, name: 'John Doe', email: 'emp.john@codtech.com', employee_id: 'CT-EMP-101', role: 'employee', status: 'active', phone: '+91 9123456789', stats: { assignedProjects: 2, completedProjects: 1, ongoingProjects: 1, totalAssignedAmount: 30000 } },
-    { id: 3, name: 'Sarah Smith', email: 'emp.sarah@codtech.com', employee_id: 'CT-EMP-102', role: 'employee', status: 'active', phone: '+91 9988776655', stats: { assignedProjects: 1, completedProjects: 1, ongoingProjects: 0, totalAssignedAmount: 25000 } },
-    { id: 4, name: 'Alex Johnson', email: 'emp.alex@codtech.com', employee_id: 'CT-EMP-103', role: 'employee', status: 'active', phone: '+91 9765432109', stats: { assignedProjects: 1, completedProjects: 0, ongoingProjects: 1, totalAssignedAmount: 9000 } }
-  ];
-
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -33,98 +27,17 @@ export default function EmployeeManagement() {
 
   const [toast, setToast] = useState(null);
 
-  // Helper to load deleted employee identifiers
-  const getDeletedEmployees = () => {
-    try {
-      const saved = localStorage.getItem('codtech_deleted_employees');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const addDeletedEmployee = (emailStr, idStr) => {
-    const list = getDeletedEmployees();
-    const cleanE = (emailStr || '').toLowerCase();
-    if (!list.includes(cleanE)) list.push(cleanE);
-    if (idStr && !list.includes(String(idStr))) list.push(String(idStr));
-    localStorage.setItem('codtech_deleted_employees', JSON.stringify(list));
-  };
-
-  // Helper to load custom employees
-  const getCustomEmployees = () => {
-    try {
-      const saved = localStorage.getItem('codtech_custom_employees');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const saveCustomEmployees = (list) => {
-    try {
-      localStorage.setItem('codtech_custom_employees', JSON.stringify(list));
-    } catch (err) {
-      console.error('Failed to save to localStorage:', err);
-    }
-  };
-
+  // Fetch employees strictly from live database API
   const fetchEmployees = async () => {
     setLoading(true);
-    const deletedList = getDeletedEmployees();
-    const localCustoms = getCustomEmployees();
-
     try {
       const res = await api.get('/employees', {
         params: { search, status: statusFilter }
       });
-      const serverEmps = res.data.employees || [];
-      
-      const mergedMap = new Map();
-      
-      // Add initial defaults if not explicitly deleted
-      INITIAL_DEFAULT_EMPLOYEES.forEach((e) => {
-        if (!deletedList.includes(e.email.toLowerCase()) && !deletedList.includes(String(e.id))) {
-          mergedMap.set(e.email.toLowerCase(), e);
-        }
-      });
-
-      // Add server employees if not explicitly deleted
-      serverEmps.forEach((e) => {
-        if (!deletedList.includes(e.email.toLowerCase()) && !deletedList.includes(String(e.id))) {
-          mergedMap.set(e.email.toLowerCase(), e);
-        }
-      });
-
-      // Add local customs if not explicitly deleted
-      localCustoms.forEach((e) => {
-        if (!deletedList.includes(e.email.toLowerCase()) && !deletedList.includes(String(e.id))) {
-          mergedMap.set(e.email.toLowerCase(), e);
-        }
-      });
-
-      let combined = Array.from(mergedMap.values());
-      if (statusFilter && statusFilter !== 'all') {
-        combined = combined.filter((e) => e.status === statusFilter);
-      }
-      setEmployees(combined);
+      setEmployees(res.data.employees || []);
     } catch (err) {
-      const mergedMap = new Map();
-      INITIAL_DEFAULT_EMPLOYEES.forEach((e) => {
-        if (!deletedList.includes(e.email.toLowerCase()) && !deletedList.includes(String(e.id))) {
-          mergedMap.set(e.email.toLowerCase(), e);
-        }
-      });
-      localCustoms.forEach((e) => {
-        if (!deletedList.includes(e.email.toLowerCase()) && !deletedList.includes(String(e.id))) {
-          mergedMap.set(e.email.toLowerCase(), e);
-        }
-      });
-      let combined = Array.from(mergedMap.values());
-      if (statusFilter && statusFilter !== 'all') {
-        combined = combined.filter((e) => e.status === statusFilter);
-      }
-      setEmployees(combined);
+      console.error('Fetch employees error:', err);
+      setToast({ message: 'Failed to load employees from live database.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -154,77 +67,43 @@ export default function EmployeeManagement() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const cleanEmail = formData.email.trim().toLowerCase();
-    const newEmpObj = {
-      id: selectedEmp ? selectedEmp.id : Date.now(),
-      name: formData.name.trim(),
-      email: cleanEmail,
-      employee_id: formData.employee_id.trim() || `CT-EMP-${Date.now().toString().slice(-4)}`,
-      role: 'employee',
-      status: 'active',
-      phone: formData.phone.trim() || '+91 9876543210',
-      stats: { assignedProjects: 0, completedProjects: 0, ongoingProjects: 0, totalAssignedAmount: 0 }
-    };
-
     try {
       if (selectedEmp) {
         await api.put(`/employees/${selectedEmp.id}`, formData);
-        setToast({ message: 'Employee Updated Successfully', type: 'success' });
+        setToast({ message: 'Employee Updated Successfully in Database', type: 'success' });
       } else {
         await api.post('/employees', formData);
-        setToast({ message: 'Employee Created Successfully', type: 'success' });
+        setToast({ message: 'Employee Created Successfully in Database', type: 'success' });
       }
+      setModalOpen(false);
+      fetchEmployees();
     } catch (err) {
-      setToast({ message: 'Employee Created & Saved Permanently!', type: 'success' });
+      setToast({ message: err.response?.data?.error || 'Failed to save employee in database.', type: 'error' });
     }
-
-    const currentCustoms = getCustomEmployees();
-    if (selectedEmp) {
-      const updatedCustoms = currentCustoms.map((emp) => emp.id === selectedEmp.id ? { ...emp, ...newEmpObj } : emp);
-      saveCustomEmployees(updatedCustoms);
-    } else {
-      saveCustomEmployees([newEmpObj, ...currentCustoms]);
-    }
-
-    setModalOpen(false);
-    fetchEmployees();
   };
 
   const handleToggleStatus = async (emp) => {
     const newStatus = emp.status === 'active' ? 'inactive' : 'active';
     try {
       await api.patch(`/employees/${emp.id}/status`, { status: newStatus });
-    } catch (err) {}
-    
-    setEmployees((prev) => prev.map((e) => e.id === emp.id ? { ...e, status: newStatus } : e));
-    const currentCustoms = getCustomEmployees();
-    const updatedCustoms = currentCustoms.map((e) => e.id === emp.id ? { ...e, status: newStatus } : e);
-    saveCustomEmployees(updatedCustoms);
-    setToast({ message: `Employee status changed to ${newStatus}`, type: 'info' });
+      setToast({ message: `Employee status updated to ${newStatus}`, type: 'info' });
+      fetchEmployees();
+    } catch (err) {
+      setToast({ message: 'Failed to update employee status in database.', type: 'error' });
+    }
   };
 
-  // PERMANENT DELETION METHOD
+  // PERMANENT DATABASE DELETION
   const handleDelete = async (emp) => {
-    if (!window.confirm(`Are you sure you want to PERMANENTLY delete employee ${emp.name}?`)) return;
+    if (!window.confirm(`Are you sure you want to PERMANENTLY delete employee ${emp.name} from the database?`)) return;
 
-    // 1. Add to permanent blacklist
-    addDeletedEmployee(emp.email, emp.id);
-
-    // 2. Remove from custom localStorage
-    const currentCustoms = getCustomEmployees();
-    const updatedCustoms = currentCustoms.filter((e) => e.id !== emp.id && e.email !== emp.email);
-    saveCustomEmployees(updatedCustoms);
-
-    // 3. Remove from UI state immediately
-    setEmployees((prev) => prev.filter((e) => e.id !== emp.id && e.email !== emp.email));
-
-    // 4. API delete call
     try {
       await api.delete(`/employees/${emp.id}`);
-    } catch (err) {}
-
-    setToast({ message: `Employee ${emp.name} Permanently Deleted`, type: 'success' });
-    fetchEmployees();
+      setToast({ message: `Employee ${emp.name} Permanently Deleted from Database`, type: 'success' });
+      fetchEmployees();
+    } catch (err) {
+      setToast({ message: err.response?.data?.error || 'Failed to delete employee from database.', type: 'error' });
+    }
   };
 
   const handleViewProfile = async (emp) => {
@@ -319,7 +198,7 @@ export default function EmployeeManagement() {
           </button>
           <button
             onClick={() => handleDelete(row)}
-            title="Delete Employee Permanently"
+            title="Delete Employee Permanently from Database"
             className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
           >
             <Trash2 className="w-4 h-4" />
