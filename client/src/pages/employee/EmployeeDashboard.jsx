@@ -99,23 +99,18 @@ export default function EmployeeDashboard() {
 
     setSubmitting(true);
     try {
+      await api.patch(`/projects/${selectedProject.id}/status`, { status: 'Completed' });
       await api.post('/credentials', {
         projectId: selectedProject.id,
         ...credForm
       });
-      await api.patch(`/projects/${selectedProject.id}/status`, { status: 'Completed' });
 
       setToast({ message: 'Project Marked Completed & Credentials Submitted to Super Admin!', type: 'success' });
       setCredModalOpen(false);
       fetchEmployeeData();
     } catch (err) {
-      try {
-        await api.patch(`/projects/${selectedProject.id}/status`, { status: 'Completed' });
-      } catch (e) {}
-
-      setToast({ message: 'Project Marked Completed & Submitted to Super Admin Panel!', type: 'success' });
-      setCredModalOpen(false);
-      fetchEmployeeData();
+      console.error('Submit credentials error:', err);
+      setToast({ message: err.response?.data?.error || 'Failed to submit credentials.', type: 'error' });
     } finally {
       setSubmitting(false);
     }

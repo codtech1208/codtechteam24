@@ -25,24 +25,14 @@ router.post('/', async (req, res) => {
     const project = await dbGet('SELECT * FROM projects WHERE id = ?', [projectId]);
     if (!project) return res.status(404).json({ error: 'Project not found.' });
 
-    // Validate project completion rule
-    if (project.status !== 'Completed') {
-      return res.status(400).json({
-        error: 'Credential submission is locked until the project status is marked as Completed.'
-      });
-    }
+    // Auto-mark project status as Completed when credentials are submitted
+    await dbRun('UPDATE projects SET status = "Completed", updated_at = CURRENT_TIMESTAMP WHERE id = ?', [projectId]);
 
     // Role gate for employee
     if (user.role === 'employee') {
       const assignment = await dbGet('SELECT employee_id FROM assignments WHERE project_id = ?', [projectId]);
       if (!assignment || assignment.employee_id !== user.id) {
         return res.status(403).json({ error: 'You are not assigned to this project.' });
-      }
-
-      // Check if already submitted
-      const existing = await dbGet('SELECT id FROM project_credentials WHERE project_id = ?', [projectId]);
-      if (existing) {
-        return res.status(400).json({ error: 'Credentials have already been submitted for this project. Contact Admin to make updates.' });
       }
     }
 
