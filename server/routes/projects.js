@@ -11,8 +11,8 @@ router.get('/', async (req, res) => {
     const { search, status, projectType, sortBy, order, page = 1, limit = 10 } = req.query;
     const user = req.user;
 
-    // For employees, omit total_worth for strict privacy (company revenue hidden)
-    const selectTotalWorth = user.role === 'super_admin' ? 'p.total_worth' : '0 as total_worth';
+    // For employees, omit total_worth and advance_amount for strict privacy (company revenue hidden)
+    const selectTotalWorth = user.role === 'super_admin' ? 'p.total_worth, COALESCE(p.advance_amount, 0) as advance_amount' : '0 as total_worth, 0 as advance_amount';
 
     let query = `
       SELECT p.id, p.project_name, p.project_type, ${selectTotalWorth}, p.status, COALESCE(p.payment_status, 'Unpaid') as payment_status, p.created_at, p.updated_at,
@@ -99,7 +99,7 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
     const user = req.user;
 
-    const selectTotalWorth = user.role === 'super_admin' ? 'p.total_worth' : '0 as total_worth';
+    const selectTotalWorth = user.role === 'super_admin' ? 'p.total_worth, COALESCE(p.advance_amount, 0) as advance_amount' : '0 as total_worth, 0 as advance_amount';
 
     const project = await dbGet(
       `SELECT p.id, p.client_id, p.project_name, p.project_type, ${selectTotalWorth}, p.status, COALESCE(p.payment_status, 'Unpaid') as payment_status, p.created_at, p.updated_at,
@@ -153,7 +153,7 @@ router.get('/:id', async (req, res) => {
 
     return res.json({
       project,
-      assignment,
+      assignment: assignment || null,
       assignmentHistory,
       statusLogs,
       activityLogs,
@@ -161,7 +161,7 @@ router.get('/:id', async (req, res) => {
       credentialsMetadata: credentials || null
     });
   } catch (err) {
-    console.error('Fetch project detail error:', err);
+    console.error('Fetch project details error:', err);
     return res.status(500).json({ error: 'Failed to fetch project details.' });
   }
 });
@@ -169,10 +169,10 @@ router.get('/:id', async (req, res) => {
 // POST /api/projects - Create & Assign Project (Admin only)
 router.post('/', requireAdmin, async (req, res) => {
   try {
-    const { projectName, clientName, clientEmail, clientMobile, projectType, totalWorth, employeeId, assignedAmount, remarks } = req.body;
+    const { projectName, clientName, clientEmail, clientMobile, projectType, totalWorth, advanceAmount, employeeId, assignedAmount, remarks } = req.body;
 
-    if (!clientName || !clientEmail || !clientMobile || !projectType || totalWorth === undefined) {
-      return res.status(400).json({ error: 'Client Name, Email, Mobile, Project Type, and Total Worth are required.' });
+    if (!clientName || !clientEmail || !clientMobile || !projectType) {
+      return res.status(400).json({ error: 'Please provide all required client and project fields.' });
     }
 
     let client = await dbGet('SELECT id FROM clients WHERE email = ?', [clientEmail.trim().toLowerCase()]);
@@ -189,8 +189,8 @@ router.post('/', requireAdmin, async (req, res) => {
 
     const projNameStr = projectName ? projectName.trim() : `${clientName.trim()} Project`;
     const projRes = await dbRun(
-      `INSERT INTO projects (client_id, project_name, project_type, total_worth, status, payment_status) VALUES (?, ?, ?, ?, 'Pending', 'Unpaid')`,
-      [clientId, projNameStr, projectType, parseFloat(totalWorth)]
+      `INSERT INTO projects (client_id, project_name, project_type, total_worth, advance_amount, status, payment_status) VALUES (?, ?, ?, ?, ?, 'Pending', 'Unpaid')`,
+      [clientId, projNameStr, projectType, parseFloat(totalWorth || 0), parseFloat(advanceAmount || 0)]
     );
     const projectId = projRes.lastID;
 
@@ -228,7 +228,7 @@ router.post('/', requireAdmin, async (req, res) => {
 router.put('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { projectName, projectType, totalWorth, status, paymentStatus, employeeId, assignedAmount, remarks } = req.body;
+    const { projectName, projectType, totalWorth, advanceAmount, status, paymentStatus, employeeId, assignedAmount, remarks } = req.body;
 
     const project = await dbGet('SELECT * FROM projects WHERE id = ?', [id]);
     if (!project) return res.status(404).json({ error: 'Project not found.' });
@@ -241,11 +241,12 @@ router.put('/:id', requireAdmin, async (req, res) => {
     }
 
     await dbRun(
-      `UPDATE projects SET project_name = ?, project_type = ?, total_worth = ?, status = ?, payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      `UPDATE projects SET project_name = ?, project_type = ?, total_worth = ?, advance_amount = ?, status = ?, payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [
         projectName || project.project_name,
         projectType || project.project_type,
         parseFloat(totalWorth !== undefined ? totalWorth : project.total_worth),
+        parseFloat(advanceAmount !== undefined ? advanceAmount : (project.advance_amount || 0)),
         status || project.status,
         paymentStatus || project.payment_status || 'Unpaid',
         id

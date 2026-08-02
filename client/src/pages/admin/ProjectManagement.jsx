@@ -150,6 +150,7 @@ export default function ProjectManagement() {
       appCost: '',
       employeePayout: '',
       totalWorth: '',
+      advanceAmount: '',
       employeeId: '',
       remarks: ''
     });
@@ -170,6 +171,7 @@ export default function ProjectManagement() {
       appCost: '',
       employeePayout: p.assigned_amount || '',
       totalWorth: p.total_worth,
+      advanceAmount: p.advance_amount || '',
       employeeId: p.assigned_employee_id || '',
       remarks: p.assignment_remarks || ''
     });
@@ -207,6 +209,7 @@ export default function ProjectManagement() {
           projectName: formData.projectName,
           projectType: combinedProjectType,
           totalWorth: formData.totalWorth,
+          advanceAmount: formData.advanceAmount,
           employeeId: formData.employeeId,
           assignedAmount: totalEmployeeAmount,
           remarks: formData.remarks
@@ -220,6 +223,7 @@ export default function ProjectManagement() {
           clientMobile: formData.clientMobile,
           projectType: combinedProjectType,
           totalWorth: formData.totalWorth,
+          advanceAmount: formData.advanceAmount,
           employeeId: formData.employeeId,
           assignedAmount: totalEmployeeAmount,
           remarks: formData.remarks || `Web: ${formData.webType} (₹${formData.webCost || 0}), App: ${formData.appType} (₹${formData.appCost || 0})`
@@ -597,10 +601,10 @@ export default function ProjectManagement() {
               <IndianRupee className="w-4 h-4" /> 3. Employee Assigned Payout & Client Pricing
             </h4>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-bold text-brand-700 mb-1">
-                  Amount Employee Will Get From Us (₹) *
+                  Employee Payout (₹) *
                 </label>
                 <input
                   type="number"
@@ -608,15 +612,15 @@ export default function ProjectManagement() {
                   min="0"
                   value={formData.employeePayout}
                   onChange={(e) => setFormData({ ...formData, employeePayout: e.target.value })}
-                  placeholder="Enter manual amount e.g. 12000"
+                  placeholder="e.g. 5000"
                   className="w-full px-3 py-2 bg-white border-2 border-brand-400 rounded-lg text-xs font-bold text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20 shadow-xs"
                 />
-                <span className="text-[10px] text-brand-600 block mt-0.5">Manually entered employee payout.</span>
+                <span className="text-[10px] text-brand-600 block mt-0.5">Developer payment.</span>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Total Client Project Worth (₹) * <span className="text-[10px] text-gray-400 font-normal">(Auto-calculated / Editable)</span>
+                  Total Client Worth (₹) *
                 </label>
                 <input
                   type="number"
@@ -625,10 +629,26 @@ export default function ProjectManagement() {
                   step="500"
                   value={formData.totalWorth}
                   onChange={(e) => setFormData({ ...formData, totalWorth: e.target.value })}
-                  placeholder="50000"
+                  placeholder="e.g. 15000"
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-brand-500"
                 />
-                <span className="text-[10px] text-gray-400 block mt-0.5">Auto-fills from component costs above.</span>
+                <span className="text-[10px] text-gray-400 block mt-0.5">Total project price.</span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-emerald-800 mb-1">
+                  Advance Paid (₹)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="500"
+                  value={formData.advanceAmount}
+                  onChange={(e) => setFormData({ ...formData, advanceAmount: e.target.value })}
+                  placeholder="e.g. 5000"
+                  className="w-full px-3 py-2 bg-emerald-50/80 border-2 border-emerald-400 rounded-lg text-xs font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
+                />
+                <span className="text-[10px] text-emerald-600 font-medium block mt-0.5">Advance paid upfront by client.</span>
               </div>
             </div>
           </div>
