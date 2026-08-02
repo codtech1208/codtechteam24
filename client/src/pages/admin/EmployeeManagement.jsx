@@ -3,8 +3,8 @@ import api from '../../utils/api';
 import DataTable from '../../components/common/DataTable';
 import Modal from '../../components/common/Modal';
 import Toast from '../../components/common/Toast';
-import { formatCurrency, getStatusBadge } from '../../utils/formatters';
-import { UserPlus, UserCheck, UserX, Trash2, Edit, Eye } from 'lucide-react';
+import { formatCurrency, formatDate, getStatusBadge } from '../../utils/formatters';
+import { UserPlus, UserCheck, UserX, Trash2, Edit, Eye, Briefcase, Mail, Phone, Calendar, User, IndianRupee, FileText } from 'lucide-react';
 
 export default function EmployeeManagement() {
   const [employees, setEmployees] = useState([]);
@@ -170,13 +170,13 @@ export default function EmployeeManagement() {
     {
       header: 'Actions',
       render: (row) => (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => handleViewProfile(row)}
-            title="View Profile"
-            className="p-1.5 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-brand-600 font-semibold text-xs rounded-lg transition-colors border border-orange-200 shadow-sm"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-3.5 h-3.5" />
+            <span>View More Details</span>
           </button>
           <button
             onClick={() => handleOpenEdit(row)}
@@ -337,70 +337,135 @@ export default function EmployeeManagement() {
         </form>
       </Modal>
 
-      {/* Modal 2: View Employee Profile & Statistics */}
+      {/* Modal 2: View Employee Details & All Assigned Project Form Details */}
       {empProfileData && (
         <Modal
           isOpen={profileModalOpen}
           onClose={() => setProfileModalOpen(false)}
-          title={`Employee Profile: ${empProfileData.employee.name}`}
-          maxWidth="max-w-3xl"
+          title={`Employee Details & Assigned Projects`}
+          maxWidth="max-w-4xl"
         >
           <div className="space-y-6">
-            {/* Header info */}
-            <div className="flex items-center gap-4 p-4 bg-orange-50/50 rounded-2xl border border-brand-100">
-              <div className="w-14 h-14 rounded-2xl bg-brand-500 text-white font-bold text-xl flex items-center justify-center shadow-lg">
-                {empProfileData.employee.name ? empProfileData.employee.name.charAt(0) : 'E'}
+            {/* Header Profile Banner */}
+            <div className="p-5 bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl text-white shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-slate-700">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-brand-500 text-white font-bold flex items-center justify-center text-xl shadow-md shadow-brand-500/30">
+                  {empProfileData.employee.name ? empProfileData.employee.name.charAt(0) : 'E'}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold tracking-tight text-white">{empProfileData.employee.name}</h3>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300 mt-1">
+                    <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-brand-400" /> {empProfileData.employee.email}</span>
+                    <span className="flex items-center gap-1 font-mono"><User className="w-3.5 h-3.5 text-brand-400" /> Code: {empProfileData.employee.employee_id}</span>
+                    <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-brand-400" /> {empProfileData.employee.phone || 'N/A'}</span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h4 className="text-lg font-bold text-slate-800">{empProfileData.employee.name}</h4>
-                <p className="text-xs text-gray-500">{empProfileData.employee.email} | Code: <span className="font-mono font-semibold">{empProfileData.employee.employee_id}</span></p>
-                <p className="text-xs text-gray-500">Phone: {empProfileData.employee.phone || 'N/A'}</p>
+              <div className="text-left md:text-right bg-white/10 px-4 py-2.5 rounded-xl backdrop-blur-sm border border-white/10">
+                <p className="text-[11px] text-slate-300 font-semibold uppercase tracking-wider">Total Assigned Payout</p>
+                <p className="text-lg font-bold text-brand-400">{formatCurrency(empProfileData.stats?.totalAssignedAmount || 0)}</p>
               </div>
             </div>
 
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {/* Quick Metrics Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div className="p-3 bg-gray-50 rounded-xl border text-center">
-                <span className="text-xs text-gray-400 block font-medium">Assigned</span>
-                <span className="text-lg font-bold text-slate-800">{empProfileData.stats?.assignedProjects || 0}</span>
+                <span className="text-gray-400 block font-semibold">Total Assigned</span>
+                <span className="text-base font-bold text-slate-900">{empProfileData.stats?.assignedProjects || 0}</span>
               </div>
               <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-center">
-                <span className="text-xs text-emerald-600 block font-medium">Completed</span>
-                <span className="text-lg font-bold text-emerald-700">{empProfileData.stats?.completedProjects || 0}</span>
+                <span className="text-emerald-600 block font-semibold">Completed</span>
+                <span className="text-base font-bold text-emerald-700">{empProfileData.stats?.completedProjects || 0}</span>
               </div>
               <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-center">
-                <span className="text-xs text-amber-600 block font-medium">Ongoing</span>
-                <span className="text-lg font-bold text-amber-700">{empProfileData.stats?.ongoingProjects || 0}</span>
+                <span className="text-amber-600 block font-semibold">Ongoing</span>
+                <span className="text-base font-bold text-amber-700">{empProfileData.stats?.ongoingProjects || 0}</span>
               </div>
               <div className="p-3 bg-brand-50 rounded-xl border border-brand-100 text-center">
-                <span className="text-xs text-brand-600 block font-medium">Total Payout</span>
-                <span className="text-lg font-bold text-brand-700">{formatCurrency(empProfileData.stats?.totalAssignedAmount)}</span>
+                <span className="text-brand-600 block font-semibold">Total Payout</span>
+                <span className="text-base font-bold text-brand-700">{formatCurrency(empProfileData.stats?.totalAssignedAmount || 0)}</span>
               </div>
             </div>
 
-            {/* Projects assigned table */}
+            {/* Assigned Projects Section */}
             <div>
-              <h5 className="font-bold text-sm text-slate-800 mb-3">Assigned Projects History</h5>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {!empProfileData.projects || empProfileData.projects.length === 0 ? (
-                  <p className="text-xs text-gray-400">No projects assigned yet.</p>
-                ) : (
-                  empProfileData.projects.map((p) => (
-                    <div key={p.id} className="p-3 border rounded-xl flex items-center justify-between text-xs">
-                      <div>
-                        <span className="font-semibold text-slate-800">{p.project_type}</span>
-                        <p className="text-gray-400">Client: {p.client_name}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className={`px-2 py-0.5 rounded-full font-semibold border ${getStatusBadge(p.status)}`}>
-                          {p.status}
-                        </span>
-                        <p className="font-bold text-brand-600 mt-1">{formatCurrency(p.assigned_amount)}</p>
-                      </div>
-                    </div>
-                  ))
-                )}
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-brand-500" />
+                  <span>Assigned Projects & Form Details ({empProfileData.projects?.length || 0})</span>
+                </h4>
               </div>
+
+              {!empProfileData.projects || empProfileData.projects.length === 0 ? (
+                <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                  <Briefcase className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500 font-medium">No projects assigned to this developer yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {empProfileData.projects.map((p) => (
+                    <div key={p.id} className="p-5 bg-white border border-gray-200 rounded-2xl shadow-sm hover:border-brand-300 transition-all space-y-4">
+                      {/* Project Top Header */}
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-gray-100">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 text-base">{p.project_name || `Project #${p.id}`}</span>
+                            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${getStatusBadge(p.status)}`}>
+                              {p.status}
+                            </span>
+                            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${p.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                              Payment: {p.payment_status}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Project Type: <span className="font-semibold text-slate-700">{p.project_type}</span>
+                          </p>
+                        </div>
+                        <div className="text-left sm:text-right">
+                          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Assigned Developer Payout</p>
+                          <p className="text-base font-extrabold text-brand-600">{formatCurrency(p.assigned_amount || 0)}</p>
+                        </div>
+                      </div>
+
+                      {/* Project Details Grid (Form Fields) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+                        <div>
+                          <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
+                            <User className="w-3.5 h-3.5 text-blue-500" /> Client Name
+                          </p>
+                          <p className="font-semibold text-slate-800">{p.client_name}</p>
+                          <p className="text-[11px] text-gray-500">{p.client_email}</p>
+                          <p className="text-[11px] text-gray-500">{p.client_mobile}</p>
+                        </div>
+
+                        <div>
+                          <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
+                            <IndianRupee className="w-3.5 h-3.5 text-emerald-500" /> Total Client Worth (Value)
+                          </p>
+                          <p className="font-bold text-emerald-600 text-sm">{formatCurrency(p.total_worth || 0)}</p>
+                        </div>
+
+                        <div>
+                          <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-orange-500" /> Assigned Date
+                          </p>
+                          <p className="font-medium text-slate-700">{formatDate(p.assigned_at || p.created_at)}</p>
+                        </div>
+                      </div>
+
+                      {/* Assignment Remarks / Special Instructions */}
+                      {p.assignment_remarks && (
+                        <div className="p-3 bg-amber-50/60 border border-amber-200/60 rounded-xl text-xs">
+                          <p className="font-semibold text-amber-900 mb-0.5 flex items-center gap-1">
+                            <FileText className="w-3.5 h-3.5 text-amber-600" /> Assignment Remarks / Instructions:
+                          </p>
+                          <p className="text-slate-700 font-medium">{p.assignment_remarks}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </Modal>

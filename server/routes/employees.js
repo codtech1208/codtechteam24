@@ -81,7 +81,9 @@ router.get('/:id', requireAdmin, async (req, res) => {
     }
 
     const projects = await dbAll(
-      `SELECT p.id, p.project_type, p.total_worth, p.status, p.created_at, c.name as client_name, a.assigned_amount, a.assigned_at
+      `SELECT p.id, p.project_name, p.project_type, p.total_worth, p.status, COALESCE(p.payment_status, 'Unpaid') as payment_status, p.created_at,
+              c.name as client_name, c.email as client_email, c.mobile as client_mobile,
+              a.assigned_amount, a.remarks as assignment_remarks, a.assigned_at
        FROM assignments a
        JOIN projects p ON a.project_id = p.id
        JOIN clients c ON p.client_id = c.id
