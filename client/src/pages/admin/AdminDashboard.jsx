@@ -42,9 +42,9 @@ export default function AdminDashboard() {
   const { metrics, feeds } = data;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto animate-fade-in">
       {/* 1. Top KPI Metrics Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
         <StatsCard
           title="Total Projects"
           value={metrics.totalProjects}
@@ -104,9 +104,9 @@ export default function AdminDashboard() {
       </div>
 
       {/* 2. Recent Activity Feeds */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Feed 1: Recent Projects */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-card lg:col-span-2">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-card lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-base font-bold text-slate-800">Recent Projects</h3>
             <span className="text-xs text-brand-600 font-semibold">Latest updates</span>

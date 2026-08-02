@@ -146,48 +146,48 @@ export default function EmployeeDashboard() {
   const paidProjects = projects.filter((p) => p.payment_status === 'Paid');
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto animate-fade-in">
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
 
       {/* Greeting Banner */}
-      <div className="bg-gradient-to-r from-brand-500 to-orange-600 text-white p-6 rounded-3xl shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-brand-500 to-orange-600 text-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <span className="text-xs uppercase font-bold tracking-widest opacity-90">Developer Workspace</span>
-          <h2 className="text-2xl font-bold mt-1">Assigned Projects Dashboard</h2>
-          <p className="text-xs text-orange-100 mt-1">View client contact details, project specifications, and update project workflow stages.</p>
+          <span className="text-[10px] sm:text-xs uppercase font-bold tracking-widest opacity-90">Developer Workspace</span>
+          <h2 className="text-lg sm:text-2xl font-bold mt-1">Assigned Projects Dashboard</h2>
+          <p className="text-xs text-orange-100 mt-1 hidden sm:block">View client contact details, project specifications, and update project workflow stages.</p>
         </div>
       </div>
 
       {/* Navigation Tabs Bar */}
-      <div className="flex items-center justify-between border border-gray-200 bg-white rounded-2xl p-1.5 shadow-sm">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center border border-gray-200 bg-white rounded-2xl p-1.5 shadow-sm overflow-x-auto">
+        <div className="flex items-center gap-1 sm:gap-2 min-w-max">
           <button
             onClick={() => setActiveTab('projects')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'projects'
                 ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20'
                 : 'text-gray-600 hover:bg-gray-100 hover:text-slate-900'
             }`}
           >
-            <FolderKanban className="w-4 h-4" />
+            <FolderKanban className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>Assigned Projects</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'projects' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'projects' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>
               {projects.length}
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('notifications')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'notifications'
                 ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20'
                 : 'text-gray-600 hover:bg-gray-100 hover:text-slate-900'
             }`}
           >
-            <Bell className="w-4 h-4" />
+            <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>Payment Notifications</span>
             {paidProjects.length > 0 && (
-              <span className="px-2 py-0.5 bg-emerald-500 text-white rounded-full text-[10px] font-black animate-pulse">
+              <span className="px-1.5 py-0.5 bg-emerald-500 text-white rounded-full text-[10px] font-black animate-pulse">
                 {paidProjects.length}
               </span>
             )}
@@ -197,9 +197,9 @@ export default function EmployeeDashboard() {
 
       {/* TAB 1: Projects & KPI Cards */}
       {activeTab === 'projects' && (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
             <StatsCard
               title="Assigned Projects"
               value={metrics.assignedProjects}
@@ -207,19 +207,19 @@ export default function EmployeeDashboard() {
               color="orange"
             />
             <StatsCard
-              title="Completed Projects"
+              title="Completed"
               value={metrics.completedProjects}
               icon={CheckCircle}
               color="green"
             />
             <StatsCard
-              title="Ongoing Projects"
+              title="Ongoing"
               value={metrics.ongoingProjects}
               icon={Clock}
               color="amber"
             />
             <StatsCard
-              title="Total Payout Amount"
+              title="Total Payout"
               value={formatCurrency(metrics.totalAssignedPayment)}
               icon={DollarSign}
               color="purple"
@@ -227,22 +227,22 @@ export default function EmployeeDashboard() {
           </div>
 
           {/* Projects Table */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-800">My Assigned Projects & Client Contact Details</h3>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-3 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-sm sm:text-base font-bold text-slate-800">My Assigned Projects &amp; Client Contact Details</h3>
               <span className="text-xs text-gray-400 font-medium">{projects.length} Projects Total</span>
             </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm border-collapse">
+        <div className="overflow-x-auto -mx-3 sm:mx-0">
+          <table className="w-full text-left text-sm border-collapse min-w-[600px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100 text-gray-400 font-semibold text-xs uppercase tracking-wider">
-                <th className="px-5 py-3.5">Project & Client Contact Info</th>
-                <th className="px-5 py-3.5">Project Category</th>
-                <th className="px-5 py-3.5">Assigned Payout</th>
-                <th className="px-5 py-3.5">Payment Status</th>
-                <th className="px-5 py-3.5">Workflow Stage</th>
-                <th className="px-5 py-3.5 text-right">Actions & Completion</th>
+                <th className="px-3 sm:px-5 py-3">Project &amp; Client</th>
+                <th className="px-3 sm:px-5 py-3">Category</th>
+                <th className="px-3 sm:px-5 py-3">Payout</th>
+                <th className="px-3 sm:px-5 py-3">Payment</th>
+                <th className="px-3 sm:px-5 py-3">Stage</th>
+                <th className="px-3 sm:px-5 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
