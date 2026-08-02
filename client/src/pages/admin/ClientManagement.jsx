@@ -4,7 +4,7 @@ import DataTable from '../../components/common/DataTable';
 import Modal from '../../components/common/Modal';
 import Toast from '../../components/common/Toast';
 import { formatCurrency, formatDate, getStatusBadge } from '../../utils/formatters';
-import { UserPlus, Edit, Trash2, Eye, Briefcase } from 'lucide-react';
+import { UserPlus, Edit, Trash2, Eye, Briefcase, Calendar, Phone, Mail, User, ShieldCheck, IndianRupee, FileText } from 'lucide-react';
 
 export default function ClientManagement() {
   const [clients, setClients] = useState([]);
@@ -79,10 +79,10 @@ export default function ClientManagement() {
     try {
       const res = await api.get(`/clients/${client.id}`);
       setSelectedClient(res.data.client);
-      setClientProjects(res.data.projects);
+      setClientProjects(res.data.projects || []);
       setHistoryModalOpen(true);
     } catch (err) {
-      setToast({ message: 'Failed to fetch client project history', type: 'error' });
+      setToast({ message: 'Failed to fetch client details and assigned projects', type: 'error' });
     }
   };
 
@@ -92,7 +92,7 @@ export default function ClientManagement() {
       render: (row) => (
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-orange-100 text-brand-600 font-bold flex items-center justify-center text-xs">
-            {row.name.charAt(0)}
+            {row.name ? row.name.charAt(0) : 'C'}
           </div>
           <div>
             <p className="font-semibold text-slate-800">{row.name}</p>
@@ -127,13 +127,13 @@ export default function ClientManagement() {
     {
       header: 'Actions',
       render: (row) => (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => handleViewProjects(row)}
-            title="Project History"
-            className="p-1.5 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-brand-600 font-semibold text-xs rounded-lg transition-colors border border-orange-200 shadow-sm"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-3.5 h-3.5" />
+            <span>View More Details</span>
           </button>
           <button
             onClick={() => handleOpenEdit(row)}
@@ -161,7 +161,7 @@ export default function ClientManagement() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Client Management</h2>
-          <p className="text-xs text-gray-400">Manage client directory, contact information, and project portfolios</p>
+          <p className="text-xs text-gray-400">Manage client directory, contact information, and assigned project portfolios</p>
         </div>
         <button
           onClick={handleOpenCreate}
@@ -243,49 +243,114 @@ export default function ClientManagement() {
         </form>
       </Modal>
 
-      {/* Modal: Client Project History */}
+      {/* Modal: Comprehensive Client & Assigned Project Details (Super Admin Panel) */}
       {selectedClient && (
         <Modal
           isOpen={historyModalOpen}
           onClose={() => setHistoryModalOpen(false)}
-          title={`Client History: ${selectedClient.name}`}
-          maxWidth="max-w-3xl"
+          title={`Full Client & Assigned Project Details`}
+          maxWidth="max-w-4xl"
         >
-          <div className="space-y-4">
-            <div className="p-4 bg-gray-50 rounded-2xl border flex flex-col sm:flex-row justify-between gap-2 text-xs">
-              <div>
-                <p className="font-semibold text-slate-800">{selectedClient.name}</p>
-                <p className="text-gray-500">{selectedClient.email} | {selectedClient.mobile}</p>
+          <div className="space-y-6">
+            {/* Client Profile Header Banner */}
+            <div className="p-5 bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl text-white shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-slate-700">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-brand-500 text-white font-bold flex items-center justify-center text-xl shadow-md shadow-brand-500/30">
+                  {selectedClient.name ? selectedClient.name.charAt(0) : 'C'}
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold tracking-tight text-white">{selectedClient.name}</h3>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300 mt-1">
+                    <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-brand-400" /> {selectedClient.email}</span>
+                    <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-brand-400" /> {selectedClient.mobile}</span>
+                  </div>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-gray-400">Total Projects:</span>{' '}
-                <span className="font-bold text-slate-800 text-sm">{clientProjects.length}</span>
+              <div className="text-left md:text-right bg-white/10 px-4 py-2.5 rounded-xl backdrop-blur-sm border border-white/10">
+                <p className="text-[11px] text-slate-300 font-semibold uppercase tracking-wider">Total Portfolio Value</p>
+                <p className="text-lg font-bold text-brand-400">{formatCurrency(selectedClient.total_spent || 0)}</p>
               </div>
             </div>
 
-            <div className="space-y-3">
+            {/* Assigned Projects Section */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-brand-500" />
+                  <span>Assigned Projects ({clientProjects.length})</span>
+                </h4>
+              </div>
+
               {clientProjects.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-6">No projects recorded for this client yet.</p>
+                <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                  <Briefcase className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500 font-medium">No projects assigned for this client yet.</p>
+                </div>
               ) : (
-                clientProjects.map((p) => (
-                  <div key={p.id} className="p-4 border rounded-xl flex items-center justify-between hover:border-brand-200 transition-colors">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-800 text-sm">{p.project_type}</span>
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${getStatusBadge(p.status)}`}>
-                          {p.status}
-                        </span>
+                <div className="space-y-4">
+                  {clientProjects.map((p) => (
+                    <div key={p.id} className="p-5 bg-white border border-gray-200 rounded-2xl shadow-sm hover:border-brand-300 transition-all space-y-4">
+                      {/* Project Top Bar */}
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-gray-100">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 text-base">{p.project_name || `Project #${p.id}`}</span>
+                            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${getStatusBadge(p.status)}`}>
+                              {p.status}
+                            </span>
+                            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${p.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                              Payment: {p.payment_status}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Project Type: <span className="font-semibold text-slate-700">{p.project_type}</span>
+                          </p>
+                        </div>
+                        <div className="text-left sm:text-right">
+                          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Client Value (Worth)</p>
+                          <p className="text-base font-extrabold text-brand-600">{formatCurrency(p.total_worth)}</p>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Assigned Developer: <span className="font-medium text-slate-700">{p.assigned_employee || 'Unassigned'}</span> | Date: {formatDate(p.created_at)}
-                      </p>
+
+                      {/* Project Details Grid (Entered in Assigned Project Form) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+                        <div>
+                          <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
+                            <User className="w-3.5 h-3.5 text-blue-500" /> Assigned Developer
+                          </p>
+                          <p className="font-semibold text-slate-800">{p.assigned_employee || 'Unassigned'}</p>
+                          {p.assigned_employee_code && (
+                            <p className="text-[11px] font-mono text-gray-500">ID: {p.assigned_employee_code}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
+                            <IndianRupee className="w-3.5 h-3.5 text-emerald-500" /> Developer Payout
+                          </p>
+                          <p className="font-bold text-emerald-600 text-sm">{formatCurrency(p.assigned_amount || 0)}</p>
+                        </div>
+
+                        <div>
+                          <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-orange-500" /> Created / Assigned Date
+                          </p>
+                          <p className="font-medium text-slate-700">{formatDate(p.created_at)}</p>
+                        </div>
+                      </div>
+
+                      {/* Assignment Remarks */}
+                      {p.assignment_remarks && (
+                        <div className="p-3 bg-amber-50/60 border border-amber-200/60 rounded-xl text-xs">
+                          <p className="font-semibold text-amber-900 mb-0.5 flex items-center gap-1">
+                            <FileText className="w-3.5 h-3.5 text-amber-600" /> Assignment Remarks / Instructions:
+                          </p>
+                          <p className="text-slate-700 font-medium">{p.assignment_remarks}</p>
+                        </div>
+                      )}
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-brand-600 text-sm">{formatCurrency(p.total_worth)}</p>
-                      <p className="text-xs text-gray-400">Employee Payout: {formatCurrency(p.assigned_amount)}</p>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           </div>

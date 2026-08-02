@@ -25,7 +25,7 @@ router.get('/', requireAdmin, async (req, res) => {
       params.push(term, term, term);
     }
 
-    query += ` GROUP BY c.id ORDER BY c.created_at DESC`;
+    query += ` GROUP BY c.id, c.name, c.email, c.mobile, c.created_at, c.updated_at ORDER BY c.created_at DESC`;
 
     const clients = await dbAll(query, params);
     return res.json({ clients });
@@ -35,7 +35,7 @@ router.get('/', requireAdmin, async (req, res) => {
   }
 });
 
-// GET /api/clients/:id - Get client details & project history
+// GET /api/clients/:id - Get client details & complete assigned project history
 router.get('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -43,8 +43,9 @@ router.get('/:id', requireAdmin, async (req, res) => {
     if (!client) return res.status(404).json({ error: 'Client not found.' });
 
     const projects = await dbAll(
-      `SELECT p.id, p.project_type, p.total_worth, p.status, p.created_at,
-              u.name as assigned_employee, a.assigned_amount
+      `SELECT p.id, p.project_name, p.project_type, p.total_worth, p.status, COALESCE(p.payment_status, 'Unpaid') as payment_status, p.created_at, p.updated_at,
+              u.id as employee_id, u.name as assigned_employee, u.email as assigned_employee_email, u.employee_id as assigned_employee_code,
+              a.assigned_amount, a.remarks as assignment_remarks, a.assigned_at
        FROM projects p
        LEFT JOIN assignments a ON p.id = a.project_id
        LEFT JOIN users u ON a.employee_id = u.id
