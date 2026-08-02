@@ -4,7 +4,7 @@ import DataTable from '../../components/common/DataTable';
 import Modal from '../../components/common/Modal';
 import Toast from '../../components/common/Toast';
 import { formatCurrency, formatDate, getStatusBadge } from '../../utils/formatters';
-import { UserPlus, Edit, Trash2, Eye, Briefcase, Calendar, Phone, Mail, User, ShieldCheck, IndianRupee, FileText } from 'lucide-react';
+import { UserPlus, Edit, Trash2, Eye, Briefcase, Calendar, Phone, Mail, User, ShieldCheck, IndianRupee, FileText, CreditCard } from 'lucide-react';
 
 export default function ClientManagement() {
   const [clients, setClients] = useState([]);
