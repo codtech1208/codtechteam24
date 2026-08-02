@@ -635,42 +635,6 @@ export default function ProjectManagement() {
                 <span className="text-[10px] text-gray-400 block mt-0.5">Auto-fills from component costs above.</span>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              <div>
-                <label className="block text-xs font-bold text-emerald-700 mb-1">
-                  Advance Payment Given Amount (₹)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="500"
-                  value={formData.advanceAmount}
-                  onChange={(e) => setFormData({ ...formData, advanceAmount: e.target.value })}
-                  placeholder="e.g. 5000"
-                  className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-lg text-xs font-bold text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                />
-                <span className="text-[10px] text-emerald-600 block mt-0.5">Advance money paid by client.</span>
-              </div>
-
-              {selectedProject && (
-                <div>
-                  <label className="block text-xs font-bold text-brand-700 mb-1">
-                    Total Payment Received Amount (₹)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="500"
-                    value={formData.receivedAmount}
-                    onChange={(e) => setFormData({ ...formData, receivedAmount: e.target.value })}
-                    placeholder="Total money received"
-                    className="w-full px-3 py-2 bg-white border border-brand-300 rounded-lg text-xs font-bold text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-                  />
-                  <span className="text-[10px] text-brand-600 block mt-0.5">Total received money from client.</span>
-                </div>
-              )}
-            </div>
           </div>
 
           <div>
