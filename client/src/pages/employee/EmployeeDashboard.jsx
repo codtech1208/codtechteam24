@@ -30,6 +30,8 @@ export default function EmployeeDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [activeTab, setActiveTab] = useState('projects'); // 'projects' or 'notifications'
+
   // Credential & Completion Modal state
   const [credModalOpen, setCredModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
@@ -156,62 +158,80 @@ export default function EmployeeDashboard() {
         </div>
       </div>
 
-      {/* Payment Received Notifications Alert Banner */}
-      {paidProjects.length > 0 && (
-        <div className="p-4 bg-emerald-500 text-white rounded-2xl shadow-lg border border-emerald-400 space-y-2 animate-bounce-subtle">
-          <div className="flex items-center gap-2">
-            <Bell className="w-5 h-5 animate-pulse" />
-            <h3 className="font-bold text-sm">🎉 PAYMENT RECEIVED NOTIFICATIONS ({paidProjects.length})</h3>
-          </div>
-          <div className="space-y-1.5 pt-1">
-            {paidProjects.map((p) => (
-              <div key={p.id} className="p-2.5 bg-white/10 backdrop-blur-md rounded-xl text-xs flex items-center justify-between font-medium">
-                <span>
-                  <strong>{p.project_name || p.project_type}</strong> (Client: {p.client_name}) — Payout Amount: <strong>{formatCurrency(p.assigned_amount)}</strong>
-                </span>
-                <span className="bg-white text-emerald-700 font-bold px-2.5 py-0.5 rounded-full text-[11px] uppercase tracking-wider">
-                  Payment Received ✅
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Navigation Tabs Bar */}
+      <div className="flex items-center justify-between border border-gray-200 bg-white rounded-2xl p-1.5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab('projects')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'projects'
+                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-slate-900'
+            }`}
+          >
+            <FolderKanban className="w-4 h-4" />
+            <span>Assigned Projects</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${activeTab === 'projects' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>
+              {projects.length}
+            </span>
+          </button>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatsCard
-          title="Assigned Projects"
-          value={metrics.assignedProjects}
-          icon={FolderKanban}
-          color="orange"
-        />
-        <StatsCard
-          title="Completed Projects"
-          value={metrics.completedProjects}
-          icon={CheckCircle}
-          color="green"
-        />
-        <StatsCard
-          title="Ongoing Projects"
-          value={metrics.ongoingProjects}
-          icon={Clock}
-          color="amber"
-        />
-        <StatsCard
-          title="Total Payout Amount"
-          value={formatCurrency(metrics.totalAssignedPayment)}
-          icon={DollarSign}
-          color="purple"
-        />
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'notifications'
+                ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-slate-900'
+            }`}
+          >
+            <Bell className="w-4 h-4" />
+            <span>Payment Notifications</span>
+            {paidProjects.length > 0 && (
+              <span className="px-2 py-0.5 bg-emerald-500 text-white rounded-full text-[10px] font-black animate-pulse">
+                {paidProjects.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Projects Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold text-slate-800">My Assigned Projects & Client Contact Details</h3>
-          <span className="text-xs text-gray-400 font-medium">{projects.length} Projects Total</span>
-        </div>
+      {/* TAB 1: Projects & KPI Cards */}
+      {activeTab === 'projects' && (
+        <div className="space-y-6">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <StatsCard
+              title="Assigned Projects"
+              value={metrics.assignedProjects}
+              icon={FolderKanban}
+              color="orange"
+            />
+            <StatsCard
+              title="Completed Projects"
+              value={metrics.completedProjects}
+              icon={CheckCircle}
+              color="green"
+            />
+            <StatsCard
+              title="Ongoing Projects"
+              value={metrics.ongoingProjects}
+              icon={Clock}
+              color="amber"
+            />
+            <StatsCard
+              title="Total Payout Amount"
+              value={formatCurrency(metrics.totalAssignedPayment)}
+              icon={DollarSign}
+              color="purple"
+            />
+          </div>
+
+          {/* Projects Table */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-800">My Assigned Projects & Client Contact Details</h3>
+              <span className="text-xs text-gray-400 font-medium">{projects.length} Projects Total</span>
+            </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm border-collapse">
@@ -323,6 +343,76 @@ export default function EmployeeDashboard() {
           </table>
         </div>
       </div>
+    </div>
+  )}
+
+  {/* TAB 2: Payment Notifications Panel */}
+  {activeTab === 'notifications' && (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-6 space-y-5">
+      <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 font-bold flex items-center justify-center">
+            <Bell className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-800">Payment Received Notifications</h3>
+            <p className="text-xs text-gray-400">View payout notifications confirmed and marked paid by Super Admin</p>
+          </div>
+        </div>
+        <span className="text-xs font-bold px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
+          {paidProjects.length} Verified Payments
+        </span>
+      </div>
+
+      {paidProjects.length === 0 ? (
+        <div className="p-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+          <Bell className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+          <p className="text-sm font-semibold text-slate-700">No payment notifications yet</p>
+          <p className="text-xs text-gray-400 mt-1">When Super Admin marks your assigned project payout as Paid, notifications will appear here.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {paidProjects.map((p) => (
+            <div key={p.id} className="p-5 bg-gradient-to-r from-emerald-50/60 to-teal-50/30 border border-emerald-200/80 rounded-2xl shadow-xs space-y-3">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white font-bold flex items-center justify-center text-lg shadow-md shadow-emerald-500/20">
+                    ✓
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Payment Confirmed by Super Admin</span>
+                    <h4 className="text-base font-bold text-slate-900">{p.project_name || `${p.client_name} Project`}</h4>
+                    <p className="text-xs text-slate-600">Category: {p.project_type}</p>
+                  </div>
+                </div>
+                <div className="text-left sm:text-right bg-white px-4 py-2 rounded-xl border border-emerald-200 shadow-2xs">
+                  <span className="text-[11px] text-gray-400 font-semibold uppercase block">Your Payout Received</span>
+                  <span className="text-lg font-black text-emerald-600">{formatCurrency(p.assigned_amount)}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-white p-3 rounded-xl border border-emerald-100">
+                <div>
+                  <span className="text-gray-400 font-medium block">Client Name</span>
+                  <span className="font-bold text-slate-800">{p.client_name}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 font-medium block">Client Email</span>
+                  <span className="font-medium text-brand-600">{p.client_email}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400 font-medium block">Payment Status</span>
+                  <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block border border-emerald-200 text-[11px]">
+                    PAID (Payment Received) ✅
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )}
 
       {/* Modal 1: View Full Client Contact & Assigned Form Details */}
       {selectedProject && (
