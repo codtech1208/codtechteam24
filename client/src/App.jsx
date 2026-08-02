@@ -4,6 +4,8 @@ import { useAuth } from './context/AuthContext';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 
+import SplashScreen from './components/common/SplashScreen';
+
 // Pages
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
@@ -49,13 +51,17 @@ function DashboardLayout({ children, title }) {
 
 export default function App() {
   const { user, loading } = useAuth();
+  const [showSplash, setShowSplash] = useState(true);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 1600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading || showSplash) {
+    return <SplashScreen />;
   }
 
   return (

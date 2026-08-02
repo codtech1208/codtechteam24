@@ -47,13 +47,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       >
         <div>
           {/* Brand Logo Header */}
-          <div className="h-20 flex items-center gap-3 px-6 border-b border-slate-800">
-            <div className="p-2.5 bg-brand-500 rounded-xl text-white shadow-lg shadow-brand-500/30">
-              <Zap className="w-6 h-6 fill-current" />
+          <div className="h-20 flex items-center gap-3 px-5 border-b border-slate-800 bg-white/5">
+            <div className="p-1.5 bg-white rounded-xl shadow-md flex items-center justify-center">
+              <img src="/logo.png" alt="CODTECH Logo" className="h-8 w-auto object-contain" />
             </div>
             <div>
-              <h1 className="font-bold text-lg tracking-wider text-white">CODTECH</h1>
-              <p className="text-[10px] uppercase font-semibold text-brand-400 tracking-widest">TEAM ENTERPRISE</p>
+              <h1 className="font-extrabold text-base tracking-wider text-white">CODTECH</h1>
+              <p className="text-[10px] uppercase font-bold text-brand-400 tracking-widest">TEAM ENTERPRISE</p>
             </div>
           </div>
 

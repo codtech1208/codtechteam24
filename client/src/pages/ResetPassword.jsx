@@ -60,7 +60,7 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-white flex flex-col justify-center items-center p-4 relative overflow-hidden">
       <Toast
         message={toast?.message}
         type={toast?.type}
@@ -68,16 +68,16 @@ export default function ResetPassword() {
       />
 
       {/* Decorative Glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-brand-500/20 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-brand-500/10 rounded-full blur-[120px] pointer-events-none"></div>
 
-      <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl p-8 z-10 animate-fade-in">
+      <div className="w-full max-w-md bg-white rounded-3xl border border-gray-200 shadow-2xl p-8 z-10 animate-fade-in">
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center p-3.5 bg-brand-500 rounded-2xl text-white shadow-xl shadow-brand-500/30 mb-3">
-            <KeyRound className="w-8 h-8" />
+          <div className="p-3 bg-white rounded-2xl border border-gray-100 shadow-md inline-block mb-3">
+            <img src="/logo.png" alt="CODTECH Logo" className="h-16 w-auto object-contain mx-auto" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Set New Password</h1>
-          <p className="text-xs font-medium text-slate-500 mt-1">
+          <h1 className="text-lg font-extrabold text-slate-900 tracking-wider uppercase">POWERED BY CODTECH TEAM</h1>
+          <p className="text-xs font-semibold text-slate-500 mt-1">
             Resetting password for <span className="font-semibold text-slate-800">{email || 'your account'}</span>
           </p>
         </div>
