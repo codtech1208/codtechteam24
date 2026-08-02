@@ -275,6 +275,21 @@ async function initDatabase() {
       );
     `);
 
+    // System Notifications Table
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT,
+        recipient_role VARCHAR(50) DEFAULT 'super_admin',
+        title VARCHAR(255) NOT NULL,
+        message TEXT NOT NULL,
+        type VARCHAR(50) DEFAULT 'general',
+        project_id INT,
+        is_read TINYINT(1) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     // Seed Data if Users table is empty
     const userCount = await dbGet('SELECT COUNT(*) as count FROM users');
     if (!userCount || userCount.count === 0 || userCount.count === '0') {

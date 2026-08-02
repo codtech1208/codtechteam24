@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { dbAll, dbGet, dbRun } = require('../config/db');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { createNotification } = require('./notifications');
 
 router.use(verifyToken);
 
@@ -364,6 +365,19 @@ router.post('/:id/receive-payment', requireAdmin, async (req, res) => {
       [req.user.id, req.user.name, 'Payment Received Recorded', `Recorded transaction ₹${newInstallment} for Project #${id}. Total Paid: ₹${totalReceivedAll}, Status: ${newStatus}`]
     );
 
+    // Send notification to assigned employee
+    const assignment = await dbGet('SELECT employee_id FROM assignments WHERE project_id = ?', [id]);
+    if (assignment && assignment.employee_id) {
+      await createNotification({
+        userId: assignment.employee_id,
+        recipientRole: 'employee',
+        title: '💰 Payment Received Notification',
+        message: `Payment of ₹${newInstallment.toLocaleString('en-IN')} recorded for project "${project.project_name}". Status: ${newStatus}`,
+        type: 'payment_received',
+        projectId: id
+      });
+    }
+
     return res.json({
       message: `Transaction Recorded Successfully! Received: ₹${newInstallment.toLocaleString('en-IN')}, Total Received: ₹${totalReceivedAll.toLocaleString('en-IN')}, Remaining Due: ₹${Math.max(0, totalWorth - totalReceivedAll).toLocaleString('en-IN')}`
     });
@@ -391,6 +405,28 @@ router.patch('/:id/status', async (req, res) => {
     }
 
     await dbRun(`UPDATE projects SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [status, id]);
+
+    // Send notifications for status update
+    await createNotification({
+      recipientRole: 'super_admin',
+      title: `📌 Status Updated: ${status}`,
+      message: `${user ? user.name : 'Employee'} updated "${project.project_name}" stage to "${status}".`,
+      type: 'status_update',
+      projectId: id
+    });
+
+    const assignmentRow = await dbGet('SELECT employee_id FROM assignments WHERE project_id = ?', [id]);
+    if (assignmentRow && assignmentRow.employee_id) {
+      await createNotification({
+        userId: assignmentRow.employee_id,
+        recipientRole: 'employee',
+        title: `📌 Status Updated: ${status}`,
+        message: `Project "${project.project_name}" stage updated to "${status}".`,
+        type: 'status_update',
+        projectId: id
+      });
+    }
+
     return res.json({ message: `Status Updated Successfully to '${status}'` });
   } catch (err) {
     console.error('Status update error:', err);

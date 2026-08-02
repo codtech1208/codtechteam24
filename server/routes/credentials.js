@@ -3,6 +3,7 @@ const router = express.Router();
 const { dbGet, dbRun, dbAll } = require('../config/db');
 const { encrypt, decrypt } = require('../utils/crypto');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { createNotification } = require('./notifications');
 
 router.use(verifyToken);
 
@@ -86,6 +87,15 @@ router.post('/', async (req, res) => {
       'INSERT INTO activity_logs (user_id, user_name, action, details) VALUES (?, ?, ?, ?)',
       [user.id, user.name, 'Credentials Submitted', `Submitted encrypted credentials for Project #${projectId}`]
     );
+
+    // Notify Super Admin
+    await createNotification({
+      recipientRole: 'super_admin',
+      title: '🔑 Project Credentials Submitted',
+      message: `${user.name} submitted host & domain credentials for "${project.project_name}". Status marked Completed.`,
+      type: 'credentials_submitted',
+      projectId: projectId
+    });
 
     return res.status(200).json({ message: 'Credentials Submitted Successfully' });
   } catch (err) {

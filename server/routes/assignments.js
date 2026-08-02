@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { dbAll, dbGet, dbRun } = require('../config/db');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { createNotification } = require('./notifications');
 
 router.use(verifyToken);
 
@@ -52,6 +53,16 @@ router.post('/', requireAdmin, async (req, res) => {
       'INSERT INTO activity_logs (user_id, user_name, action, details) VALUES (?, ?, ?, ?)',
       [req.user.id, req.user.name, actionText, `${actionText} Project #${projectId} to ${newEmp.name} (Amount: ₹${assignedAmount})`]
     );
+
+    // Send notification to assigned employee
+    await createNotification({
+      userId: employeeId,
+      recipientRole: 'employee',
+      title: '📁 New Project Assigned',
+      message: `You have been assigned to project "${project.project_name}". Assigned Payout: ₹${parseFloat(assignedAmount).toLocaleString('en-IN')}`,
+      type: 'assignment',
+      projectId: projectId
+    });
 
     return res.status(200).json({ message: 'Project Assigned Successfully' });
   } catch (err) {
