@@ -34,13 +34,13 @@ export default function Toast({ message, type = 'success', onClose, duration = 4
   const current = typeConfig[type] || typeConfig.success;
 
   return (
-    <div className="fixed top-5 right-5 z-50 animate-fade-in max-w-sm w-full">
-      <div className={`flex items-center gap-3 p-4 rounded-xl border shadow-lg backdrop-blur-md ${current.bg}`}>
-        {current.icon}
-        <p className="text-sm font-medium flex-1">{message}</p>
+    <div className="fixed top-4 left-4 right-4 sm:left-auto sm:right-5 sm:max-w-sm z-[100] animate-fade-in pointer-events-auto">
+      <div className={`flex items-start sm:items-center gap-3 p-3.5 sm:p-4 rounded-2xl border shadow-xl backdrop-blur-md ${current.bg}`}>
+        <div className="mt-0.5 sm:mt-0">{current.icon}</div>
+        <p className="text-xs sm:text-sm font-medium flex-1 break-words min-w-0 leading-snug">{message}</p>
         <button
           onClick={onClose}
-          className="p-1 rounded-lg hover:bg-black/5 transition-colors"
+          className="p-1 rounded-lg hover:bg-black/5 transition-colors shrink-0 -mr-1"
         >
           <X className="w-4 h-4 opacity-60" />
         </button>
