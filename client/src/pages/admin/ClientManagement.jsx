@@ -16,6 +16,11 @@ export default function ClientManagement() {
   const [selectedClient, setSelectedClient] = useState(null);
   const [clientProjects, setClientProjects] = useState([]);
 
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedProjectForPayment, setSelectedProjectForPayment] = useState(null);
+  const [newReceivedAmount, setNewReceivedAmount] = useState('');
+  const [updatingPayment, setUpdatingPayment] = useState(false);
+
   const [formData, setFormData] = useState({ name: '', email: '', mobile: '' });
   const [toast, setToast] = useState(null);
 
@@ -86,6 +91,34 @@ export default function ClientManagement() {
     }
   };
 
+  const handleOpenPaymentModal = (project) => {
+    setSelectedProjectForPayment(project);
+    setNewReceivedAmount(project.received_amount !== undefined ? project.received_amount : (project.advance_amount || 0));
+    setPaymentModalOpen(true);
+  };
+
+  const handleSavePaymentUpdate = async (e) => {
+    e.preventDefault();
+    if (!selectedProjectForPayment) return;
+    setUpdatingPayment(true);
+    try {
+      await api.post(`/projects/${selectedProjectForPayment.id}/receive-payment`, {
+        receivedAmount: parseFloat(newReceivedAmount || 0)
+      });
+      setToast({ message: 'Client Payment Updated Successfully!', type: 'success' });
+      setPaymentModalOpen(false);
+      if (selectedClient) {
+        handleViewProjects(selectedClient);
+      }
+      fetchClients();
+    } catch (err) {
+      console.error('Update payment error:', err);
+      setToast({ message: err.response?.data?.error || 'Failed to update payment', type: 'error' });
+    } finally {
+      setUpdatingPayment(false);
+    }
+  };
+
   const columns = [
     {
       header: 'Client Name',
@@ -102,17 +135,16 @@ export default function ClientManagement() {
       )
     },
     {
-      header: 'Email',
-      accessorKey: 'email',
-      render: (row) => <span className="text-slate-700 font-medium">{row.email}</span>
+      header: 'Contact Info',
+      render: (row) => (
+        <div className="text-xs space-y-0.5">
+          <p className="text-slate-700 font-medium">{row.email}</p>
+          <p className="font-mono text-gray-500">{row.mobile}</p>
+        </div>
+      )
     },
     {
-      header: 'Mobile',
-      accessorKey: 'mobile',
-      render: (row) => <span className="font-mono text-xs text-slate-600">{row.mobile}</span>
-    },
-    {
-      header: 'Projects Overview',
+      header: 'Projects',
       render: (row) => (
         <div className="text-xs">
           <span className="font-bold text-slate-800">{row.total_projects || 0} Total</span>
@@ -122,7 +154,26 @@ export default function ClientManagement() {
     },
     {
       header: 'Total Value',
-      render: (row) => <span className="font-bold text-brand-600">{formatCurrency(row.total_spent)}</span>
+      render: (row) => <span className="font-bold text-slate-800">{formatCurrency(row.total_spent || 0)}</span>
+    },
+    {
+      header: 'Advance Paid',
+      render: (row) => <span className="font-bold text-emerald-600">{formatCurrency(row.total_advance_received || 0)}</span>
+    },
+    {
+      header: 'Total Received',
+      render: (row) => <span className="font-bold text-brand-600">{formatCurrency(row.total_received_payment || row.total_advance_received || 0)}</span>
+    },
+    {
+      header: 'Due Amount',
+      render: (row) => {
+        const due = row.total_due_amount !== undefined ? row.total_due_amount : (row.total_spent - (row.total_received_payment || row.total_advance_received || 0));
+        return (
+          <span className={`font-bold px-2.5 py-1 rounded-full text-xs border ${due > 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+            {due > 0 ? formatCurrency(due) : '₹0 (Paid ✅)'}
+          </span>
+        );
+      }
     },
     {
       header: 'Actions',
@@ -133,7 +184,7 @@ export default function ClientManagement() {
             className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-brand-600 font-semibold text-xs rounded-lg transition-colors border border-orange-200 shadow-sm"
           >
             <Eye className="w-3.5 h-3.5" />
-            <span>View More Details</span>
+            <span>View Details</span>
           </button>
           <button
             onClick={() => handleOpenEdit(row)}
@@ -313,7 +364,7 @@ export default function ClientManagement() {
                       </div>
 
                       {/* Project Details Grid (Entered in Assigned Project Form) */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs bg-gray-50 p-3.5 rounded-xl border border-gray-100">
                         <div>
                           <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
                             <User className="w-3.5 h-3.5 text-blue-500" /> Assigned Developer
@@ -326,17 +377,38 @@ export default function ClientManagement() {
 
                         <div>
                           <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
-                            <IndianRupee className="w-3.5 h-3.5 text-emerald-500" /> Developer Payout
+                            <IndianRupee className="w-3.5 h-3.5 text-emerald-500" /> Advance Paid
                           </p>
-                          <p className="font-bold text-emerald-600 text-sm">{formatCurrency(p.assigned_amount || 0)}</p>
+                          <p className="font-bold text-emerald-600 text-sm">{formatCurrency(p.advance_amount || 0)}</p>
                         </div>
 
                         <div>
                           <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-orange-500" /> Created / Assigned Date
+                            <IndianRupee className="w-3.5 h-3.5 text-brand-500" /> Total Received
                           </p>
-                          <p className="font-medium text-slate-700">{formatDate(p.created_at)}</p>
+                          <p className="font-bold text-brand-600 text-sm">{formatCurrency(p.received_amount || p.advance_amount || 0)}</p>
                         </div>
+
+                        <div>
+                          <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
+                            <IndianRupee className="w-3.5 h-3.5 text-rose-500" /> Due Balance
+                          </p>
+                          <p className={`font-bold text-sm ${((p.total_worth || 0) - (p.received_amount || p.advance_amount || 0)) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            {formatCurrency(Math.max(0, (p.total_worth || 0) - (p.received_amount || p.advance_amount || 0)))}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action to update payment */}
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                        <span className="text-xs text-gray-500">Developer Payout: <strong>{formatCurrency(p.assigned_amount || 0)}</strong></span>
+                        <button
+                          onClick={() => handleOpenPaymentModal(p)}
+                          className="px-3.5 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
+                        >
+                          <IndianRupee className="w-3.5 h-3.5" />
+                          <span>Update Received Payment</span>
+                        </button>
                       </div>
 
                       {/* Assignment Remarks */}
@@ -354,6 +426,73 @@ export default function ClientManagement() {
               )}
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* Modal: Update Client Received Payment */}
+      {selectedProjectForPayment && (
+        <Modal
+          isOpen={paymentModalOpen}
+          onClose={() => setPaymentModalOpen(false)}
+          title={`Update Payment Received: ${selectedProjectForPayment.project_name || `Project #${selectedProjectForPayment.id}`}`}
+          maxWidth="max-w-md"
+        >
+          <form onSubmit={handleSavePaymentUpdate} className="space-y-4">
+            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Total Project Value (Worth):</span>
+                <span className="font-bold text-slate-800">{formatCurrency(selectedProjectForPayment.total_worth || 0)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Advance Payment Given:</span>
+                <span className="font-bold text-emerald-600">{formatCurrency(selectedProjectForPayment.advance_amount || 0)}</span>
+              </div>
+              <div className="flex justify-between pt-1 border-t border-gray-200">
+                <span className="text-slate-700 font-semibold">Current Total Received:</span>
+                <span className="font-extrabold text-brand-600">{formatCurrency(selectedProjectForPayment.received_amount || selectedProjectForPayment.advance_amount || 0)}</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                New Total Payment Received from Client (₹)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="500"
+                required
+                value={newReceivedAmount}
+                onChange={(e) => setNewReceivedAmount(e.target.value)}
+                placeholder="Enter total amount received"
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:bg-white focus:outline-none focus:border-brand-500"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">
+                Updating this will automatically recalculate the Due Balance and update the Payment Status & Total Received Revenue on the Dashboard.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setPaymentModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={updatingPayment}
+                className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold text-xs shadow-md inline-flex items-center gap-1.5"
+              >
+                {updatingPayment ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  'Save Payment Update'
+                )}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>

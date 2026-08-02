@@ -14,26 +14,39 @@ router.get('/admin', requireAdmin, async (req, res) => {
       completedProjectsRow,
       ongoingProjectsRow,
       totalRevenueRow,
+      totalAdvanceReceivedRow,
+      totalReceivedRevenueRow,
       totalPayoutRow,
       totalEmployeesRow,
       totalClientsRow,
-      totalAdvanceRow,
+      advanceClientsList,
       typesData,
       empPerformance,
       revenueByType,
       recentClients,
       recentProjects,
-      recentAssignments,
-      advancePaymentsList
+      recentAssignments
     ] = await Promise.all([
       dbGet('SELECT COUNT(*) as count FROM projects'),
       dbGet("SELECT COUNT(*) as count FROM projects WHERE status = 'Completed'"),
       dbGet("SELECT COUNT(*) as count FROM projects WHERE status = 'Ongoing'"),
       dbGet('SELECT COALESCE(SUM(total_worth), 0) as total FROM projects'),
+      dbGet('SELECT COALESCE(SUM(advance_amount), 0) as total FROM projects'),
+      dbGet('SELECT COALESCE(SUM(CASE WHEN received_amount > 0 THEN received_amount ELSE advance_amount END), 0) as total FROM projects'),
       dbGet('SELECT COALESCE(SUM(assigned_amount), 0) as total FROM assignments'),
       dbGet("SELECT COUNT(*) as count FROM users WHERE role = 'employee' AND status = 'active'"),
       dbGet('SELECT COUNT(*) as count FROM clients'),
-      dbGet('SELECT COALESCE(SUM(advance_amount), 0) as total FROM projects'),
+      dbAll(
+        `SELECT p.*, c.name as client_name, c.email as client_email, c.mobile as client_mobile,
+                u.name as assigned_employee_name, u.employee_id as assigned_employee_code,
+                a.assigned_amount, a.remarks as assignment_remarks, a.assigned_at
+         FROM projects p
+         JOIN clients c ON p.client_id = c.id
+         LEFT JOIN assignments a ON p.id = a.project_id
+         LEFT JOIN users u ON a.employee_id = u.id
+         WHERE p.advance_amount > 0
+         ORDER BY p.created_at DESC`
+      ),
       dbAll('SELECT project_type as name, COUNT(*) as value FROM projects GROUP BY project_type'),
       dbAll(
         `SELECT u.name as employee_name,
@@ -63,20 +76,6 @@ router.get('/admin', requireAdmin, async (req, res) => {
          JOIN projects p ON ah.project_id = p.id
          JOIN clients c ON p.client_id = c.id
          ORDER BY ah.changed_at DESC LIMIT 5`
-      ),
-      dbAll(
-        `SELECT p.id, p.project_name, p.project_type, p.total_worth, COALESCE(p.advance_amount, 0) as advance_amount,
-                (p.total_worth - COALESCE(p.advance_amount, 0)) as remaining_balance,
-                p.status, COALESCE(p.payment_status, 'Unpaid') as payment_status, p.created_at,
-                c.id as client_id, c.name as client_name, c.email as client_email, c.mobile as client_mobile,
-                u.id as assigned_employee_id, u.name as assigned_employee_name, u.employee_id as assigned_employee_code,
-                a.assigned_amount, a.remarks as assignment_remarks
-         FROM projects p
-         JOIN clients c ON p.client_id = c.id
-         LEFT JOIN assignments a ON p.id = a.project_id
-         LEFT JOIN users u ON a.employee_id = u.id
-         WHERE COALESCE(p.advance_amount, 0) > 0
-         ORDER BY p.created_at DESC`
       )
     ]);
 
@@ -85,10 +84,11 @@ router.get('/admin', requireAdmin, async (req, res) => {
       completedProjects: completedProjectsRow?.count || 0,
       ongoingProjects: ongoingProjectsRow?.count || 0,
       totalRevenue: totalRevenueRow?.total || 0,
+      advancePaymentReceived: totalAdvanceReceivedRow?.total || 0,
+      totalReceivedRevenue: totalReceivedRevenueRow?.total || 0,
       totalEmployeePayout: totalPayoutRow?.total || 0,
       totalEmployees: totalEmployeesRow?.count || 0,
-      totalClients: totalClientsRow?.count || 0,
-      totalAdvanceReceived: totalAdvanceRow?.total || 0
+      totalClients: totalClientsRow?.count || 0
     };
 
     const projectsByStatus = [
@@ -108,7 +108,7 @@ router.get('/admin', requireAdmin, async (req, res) => {
         recentClients: recentClients || [],
         recentProjects: recentProjects || [],
         recentAssignments: recentAssignments || [],
-        advancePaymentsList: advancePaymentsList || []
+        advanceClients: advanceClientsList || []
       }
     });
   } catch (err) {
