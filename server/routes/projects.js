@@ -70,15 +70,13 @@ router.get('/', async (req, res) => {
     const limitNum = parseInt(limit);
     const offset = (pageNum - 1) * limitNum;
 
-    // Get total count first
-    const countSql = `SELECT COUNT(*) as count FROM (${query})`;
+    // Get total count first with derived table alias for MySQL compatibility
+    const countSql = `SELECT COUNT(*) as count FROM (${query}) AS subquery_alias`;
     const totalRow = await dbGet(countSql, params);
     const totalRecords = totalRow ? totalRow.count : 0;
 
-    query += ` LIMIT ? OFFSET ?`;
-    params.push(limitNum, offset);
-
-    const projects = await dbAll(query, params);
+    const dataQuery = `${query} LIMIT ${limitNum} OFFSET ${offset}`;
+    const projects = await dbAll(dataQuery, params);
 
     return res.json({
       projects,
