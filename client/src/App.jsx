@@ -56,7 +56,7 @@ export default function App() {
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 1600);
+    }, 2500);
     return () => clearTimeout(timer);
   }, []);
 
