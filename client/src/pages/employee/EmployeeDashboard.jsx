@@ -116,6 +116,22 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const handleStatusChange = async (project, newStatus) => {
+    if (newStatus === 'Completed') {
+      handleOpenCompletionModal(project);
+      return;
+    }
+
+    try {
+      await api.patch(`/projects/${project.id}/status`, { status: newStatus });
+      setToast({ message: `Project status updated to '${newStatus}'`, type: 'success' });
+      fetchEmployeeData();
+    } catch (err) {
+      console.error('Update status error:', err);
+      setToast({ message: 'Failed to update project status.', type: 'error' });
+    }
+  };
+
   if (loading || !data) {
     return (
       <div className="p-8 flex items-center justify-center min-h-[400px]">
@@ -136,7 +152,7 @@ export default function EmployeeDashboard() {
         <div>
           <span className="text-xs uppercase font-bold tracking-widest opacity-90">Developer Workspace</span>
           <h2 className="text-2xl font-bold mt-1">Assigned Projects Dashboard</h2>
-          <p className="text-xs text-orange-100 mt-1">View client contact details, project specifications, and submit credentials upon completion.</p>
+          <p className="text-xs text-orange-100 mt-1">View client contact details, project specifications, and update project workflow stages.</p>
         </div>
       </div>
 
@@ -205,7 +221,7 @@ export default function EmployeeDashboard() {
                 <th className="px-5 py-3.5">Project Category</th>
                 <th className="px-5 py-3.5">Assigned Payout</th>
                 <th className="px-5 py-3.5">Payment Status</th>
-                <th className="px-5 py-3.5">Status</th>
+                <th className="px-5 py-3.5">Workflow Stage</th>
                 <th className="px-5 py-3.5 text-right">Actions & Completion</th>
               </tr>
             </thead>
@@ -258,16 +274,19 @@ export default function EmployeeDashboard() {
                           </span>
                         )}
                       </td>
+                      {/* Workflow Status Dropdown Selector */}
                       <td className="px-5 py-4">
-                        {isCompleted ? (
-                          <span className="text-[11px] font-bold px-3 py-1 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200 inline-flex items-center gap-1">
-                            <CheckCircle className="w-3.5 h-3.5" /> Completed
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-semibold px-3 py-1 rounded-full border bg-amber-50 text-amber-700 border-amber-200 inline-flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5" /> Ongoing
-                          </span>
-                        )}
+                        <select
+                          value={p.status || 'Pending'}
+                          onChange={(e) => handleStatusChange(p, e.target.value)}
+                          className={`text-xs font-bold px-3 py-1.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-brand-500/20 cursor-pointer shadow-sm ${getStatusBadge(p.status)}`}
+                        >
+                          <option value="Pending" className="bg-white text-slate-800">⏳ Pending</option>
+                          <option value="UI Stage Completed" className="bg-white text-slate-800">🎨 UI Stage Completed</option>
+                          <option value="Backend Started" className="bg-white text-slate-800">⚙️ Backend Started</option>
+                          <option value="Project is Ready to Live" className="bg-white text-slate-800">🚀 Project is Ready to Live</option>
+                          <option value="Completed" className="bg-white text-emerald-700 font-bold">✅ Completed (Submit Credentials)</option>
+                        </select>
                       </td>
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -279,9 +298,13 @@ export default function EmployeeDashboard() {
                             <Eye className="w-3.5 h-3.5" /> Client Info
                           </button>
                           {isCompleted ? (
-                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl inline-flex items-center gap-1">
-                              <ShieldCheck className="w-4 h-4 text-emerald-600" /> Submitted
-                            </span>
+                            <button
+                              onClick={() => handleOpenCompletionModal(p)}
+                              title="Update Credentials"
+                              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-xs inline-flex items-center gap-1 transition-all"
+                            >
+                              <ShieldCheck className="w-4 h-4 text-emerald-600" /> Credentials Submitted ✅
+                            </button>
                           ) : (
                             <button
                               onClick={() => handleOpenCompletionModal(p)}
