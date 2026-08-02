@@ -110,13 +110,10 @@ export default function ProjectManagement() {
   const fetchEmployeesList = async () => {
     try {
       const res = await api.get('/employees?status=active');
-      if (res.data.employees && res.data.employees.length > 0) {
-        setEmployees(res.data.employees);
-      } else {
-        setEmployees(DEFAULT_EMPLOYEES);
-      }
+      setEmployees(res.data.employees || []);
     } catch (err) {
-      setEmployees(DEFAULT_EMPLOYEES);
+      console.error('Fetch employees list error:', err);
+      setEmployees([]);
     }
   };
 

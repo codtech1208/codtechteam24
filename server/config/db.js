@@ -13,7 +13,7 @@ const DB_NAME = process.env.DB_NAME || 'u909011072_codtech_db';
 let mysqlPool = null;
 let useMySQL = false;
 
-if (DB_HOST && DB_USER && DB_NAME) {
+function createMySQLPool() {
   try {
     mysqlPool = mysql.createPool({
       host: DB_HOST,
@@ -22,9 +22,11 @@ if (DB_HOST && DB_USER && DB_NAME) {
       password: DB_PASS,
       database: DB_NAME,
       waitForConnections: true,
-      connectionLimit: 10,
+      connectionLimit: 20,
       queueLimit: 0,
-      connectTimeout: 8000
+      connectTimeout: 10000,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0
     });
     useMySQL = true;
     console.log(`Connected to Hostinger Remote MySQL Cloud Database at ${DB_HOST} (${DB_NAME})`);
@@ -33,6 +35,8 @@ if (DB_HOST && DB_USER && DB_NAME) {
     useMySQL = false;
   }
 }
+
+createMySQLPool();
 
 // SQLite Local Backup
 const dbPath = path.resolve(__dirname, '../database.sqlite');
@@ -72,7 +76,7 @@ const runSqliteAll = (sql, params = []) => {
   });
 };
 
-// Universal Database Query Helpers with Safe Auto-Failover
+// Universal Database Query Helpers with High Resilience
 const dbRun = async (sql, params = []) => {
   if (useMySQL && mysqlPool) {
     try {
@@ -82,11 +86,10 @@ const dbRun = async (sql, params = []) => {
         .replace(/BOOLEAN/gi, 'TINYINT(1)')
         .replace(/TEXT/gi, 'VARCHAR(255)');
 
-      const [result] = await mysqlPool.execute(mySqlStatement, params);
+      const [result] = await mysqlPool.query(mySqlStatement, params);
       return { lastID: result.insertId, changes: result.affectedRows };
     } catch (err) {
-      console.warn('MySQL dbRun fallback to SQLite:', err.message);
-      useMySQL = false;
+      console.warn('MySQL dbRun query warning:', err.message);
       return runSqliteRun(sql, params);
     }
   }
@@ -97,11 +100,10 @@ const dbRun = async (sql, params = []) => {
 const dbGet = async (sql, params = []) => {
   if (useMySQL && mysqlPool) {
     try {
-      const [rows] = await mysqlPool.execute(sql, params);
+      const [rows] = await mysqlPool.query(sql, params);
       return rows[0] || null;
     } catch (err) {
-      console.warn('MySQL dbGet fallback to SQLite:', err.message);
-      useMySQL = false;
+      console.warn('MySQL dbGet query warning:', err.message);
       return runSqliteGet(sql, params);
     }
   }
@@ -112,11 +114,10 @@ const dbGet = async (sql, params = []) => {
 const dbAll = async (sql, params = []) => {
   if (useMySQL && mysqlPool) {
     try {
-      const [rows] = await mysqlPool.execute(sql, params);
+      const [rows] = await mysqlPool.query(sql, params);
       return rows;
     } catch (err) {
-      console.warn('MySQL dbAll fallback to SQLite:', err.message);
-      useMySQL = false;
+      console.warn('MySQL dbAll query warning:', err.message);
       return runSqliteAll(sql, params);
     }
   }

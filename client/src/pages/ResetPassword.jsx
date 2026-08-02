@@ -25,6 +25,10 @@ export default function ResetPassword() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!email || !email.trim()) {
+      setToast({ message: 'Please enter your email address.', type: 'warning' });
+      return;
+    }
     if (!newPassword || newPassword.length < 6) {
       setToast({ message: 'New password must be at least 6 characters.', type: 'warning' });
       return;
@@ -36,23 +40,20 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      await api.post('/auth/reset-password-token', {
-        email,
+      const res = await api.post('/auth/reset-password-token', {
+        email: email.trim().toLowerCase(),
         token,
         newPassword
       });
       setSuccess(true);
-      setToast({ message: 'Password updated successfully! Redirecting to login...', type: 'success' });
+      setToast({ message: res.data?.message || 'Password updated successfully! Redirecting to login...', type: 'success' });
       setTimeout(() => {
         navigate('/login', { replace: true });
       }, 1500);
     } catch (err) {
-      // Fallback update for demo seed accounts if offline
-      setSuccess(true);
-      setToast({ message: 'Password updated successfully!', type: 'success' });
-      setTimeout(() => {
-        navigate('/login', { replace: true });
-      }, 1500);
+      console.error('Reset password token error:', err);
+      const errorMsg = err.response?.data?.error || 'Failed to update password. Please verify your details.';
+      setToast({ message: errorMsg, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -91,6 +92,19 @@ export default function ResetPassword() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                Account Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email address"
+                required
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+              />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
                 New Password
