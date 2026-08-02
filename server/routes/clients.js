@@ -13,7 +13,10 @@ router.get('/', requireAdmin, async (req, res) => {
       SELECT c.*, 
         COUNT(p.id) as total_projects,
         SUM(CASE WHEN p.status = 'Completed' THEN 1 ELSE 0 END) as completed_projects,
-        COALESCE(SUM(p.total_worth), 0) as total_spent
+        COALESCE(SUM(p.total_worth), 0) as total_spent,
+        COALESCE(SUM(p.advance_amount), 0) as total_advance_received,
+        COALESCE(SUM(CASE WHEN p.received_amount > 0 THEN p.received_amount ELSE p.advance_amount END), 0) as total_received_payment,
+        COALESCE(SUM(CASE WHEN (p.total_worth - (CASE WHEN p.received_amount > 0 THEN p.received_amount ELSE p.advance_amount END)) > 0 THEN (p.total_worth - (CASE WHEN p.received_amount > 0 THEN p.received_amount ELSE p.advance_amount END)) ELSE 0 END), 0) as total_due_amount
       FROM clients c
       LEFT JOIN projects p ON c.id = p.client_id
     `;
@@ -43,7 +46,7 @@ router.get('/:id', requireAdmin, async (req, res) => {
     if (!client) return res.status(404).json({ error: 'Client not found.' });
 
     const projects = await dbAll(
-      `SELECT p.id, p.project_name, p.project_type, p.total_worth, p.status, COALESCE(p.payment_status, 'Unpaid') as payment_status, p.created_at, p.updated_at,
+      `SELECT p.id, p.project_name, p.project_type, p.total_worth, p.advance_amount, p.received_amount, p.status, COALESCE(p.payment_status, 'Unpaid') as payment_status, p.created_at, p.updated_at,
               u.id as employee_id, u.name as assigned_employee, u.email as assigned_employee_email, u.employee_id as assigned_employee_code,
               a.assigned_amount, a.remarks as assignment_remarks, a.assigned_at
        FROM projects p

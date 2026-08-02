@@ -174,8 +174,8 @@ export default function ProjectManagement() {
       appCost: '',
       employeePayout: p.assigned_amount || '',
       totalWorth: p.total_worth,
-      advanceAmount: p.advance_amount !== undefined ? p.advance_amount : '',
-      receivedAmount: p.received_amount !== undefined ? p.received_amount : (p.advance_amount || ''),
+      advanceAmount: p.advance_amount !== undefined && p.advance_amount !== null ? String(p.advance_amount) : '',
+      receivedAmount: p.received_amount !== undefined && p.received_amount !== null ? String(p.received_amount) : '',
       employeeId: p.assigned_employee_id || '',
       remarks: p.assignment_remarks || ''
     });

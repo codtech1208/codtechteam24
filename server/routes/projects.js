@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
     const selectTotalWorth = user.role === 'super_admin' ? 'p.total_worth' : '0 as total_worth';
 
     let query = `
-      SELECT p.id, p.project_name, p.project_type, ${selectTotalWorth}, p.status, COALESCE(p.payment_status, 'Unpaid') as payment_status, p.created_at, p.updated_at,
+      SELECT p.id, p.project_name, p.project_type, ${selectTotalWorth}, p.advance_amount, p.received_amount, p.status, COALESCE(p.payment_status, 'Unpaid') as payment_status, p.created_at, p.updated_at,
              c.id as client_id, c.name as client_name, c.email as client_email, c.mobile as client_mobile,
              u.id as assigned_employee_id, u.name as assigned_employee_name, u.employee_id as assigned_employee_code,
              a.assigned_amount, a.assigned_at, a.remarks as assignment_remarks,
