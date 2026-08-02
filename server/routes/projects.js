@@ -204,6 +204,14 @@ router.post('/', requireAdmin, async (req, res) => {
       [projectId, 'None', 'Pending', req.user ? req.user.name : 'Super Admin']
     );
 
+    // Record initial advance payment transaction if present
+    if (advAmt > 0) {
+      await dbRun(
+        `INSERT INTO payment_transactions (project_id, amount, payment_type, remarks, recorded_by) VALUES (?, ?, 'Advance Payment', ?, ?)`,
+        [projectId, advAmt, 'Initial Advance Payment Given on Project Setup', req.user ? req.user.name : 'Super Admin']
+      );
+    }
+
     if (employeeId) {
       const emp = await dbGet('SELECT name FROM users WHERE id = ? AND role = "employee"', [employeeId]);
       if (emp) {
@@ -316,35 +324,52 @@ router.patch('/:id/payment-status', requireAdmin, async (req, res) => {
   }
 });
 
-// POST /api/projects/:id/receive-payment - Record/update received payment from client (Admin only)
+// POST /api/projects/:id/receive-payment - Record new payment transaction from client (Admin only)
 router.post('/:id/receive-payment', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { receivedAmount } = req.body;
+    const { receivedAmount, paymentType, remarks } = req.body;
 
     const project = await dbGet('SELECT * FROM projects WHERE id = ?', [id]);
     if (!project) return res.status(404).json({ error: 'Project not found.' });
 
-    const newSubsequentReceived = parseFloat(receivedAmount || 0);
+    const newInstallment = parseFloat(receivedAmount || 0);
+    if (newInstallment <= 0) {
+      return res.status(400).json({ error: 'Payment amount must be greater than 0.' });
+    }
+
     const advAmount = parseFloat(project.advance_amount || 0);
     const totalWorth = parseFloat(project.total_worth || 0);
-    const totalReceived = advAmount + newSubsequentReceived;
-    const newStatus = totalReceived >= totalWorth && totalWorth > 0 ? 'Paid' : (totalReceived > 0 ? 'Partially Paid' : 'Unpaid');
+
+    // Record new individual payment transaction with date & timestamp
+    await dbRun(
+      `INSERT INTO payment_transactions (project_id, amount, payment_type, remarks, recorded_by) VALUES (?, ?, ?, ?, ?)`,
+      [id, newInstallment, paymentType || 'Part Payment', remarks || 'Payment Received', req.user ? req.user.name : 'Super Admin']
+    );
+
+    // Calculate total accumulated payments from payment_transactions
+    const sumRow = await dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM payment_transactions WHERE project_id = ?`, [id]);
+    const totalReceivedAll = sumRow ? sumRow.total : (advAmount + newInstallment);
+    const subsequentReceived = Math.max(0, totalReceivedAll - advAmount);
+
+    const newStatus = totalReceivedAll >= totalWorth && totalWorth > 0 ? 'Paid' : (totalReceivedAll > 0 ? 'Partially Paid' : 'Unpaid');
 
     await dbRun(
       `UPDATE projects SET received_amount = ?, payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      [newSubsequentReceived, newStatus, id]
+      [subsequentReceived, newStatus, id]
     );
 
     await dbRun(
       'INSERT INTO activity_logs (user_id, user_name, action, details) VALUES (?, ?, ?, ?)',
-      [req.user.id, req.user.name, 'Payment Received Updated', `Updated Project #${id} received payment. Advance: ₹${advAmount}, Further: ₹${newSubsequentReceived}, Total Received: ₹${totalReceived}`]
+      [req.user.id, req.user.name, 'Payment Received Recorded', `Recorded transaction ₹${newInstallment} for Project #${id}. Total Paid: ₹${totalReceivedAll}, Status: ${newStatus}`]
     );
 
-    return res.json({ message: `Payment Received Updated Successfully. Total Received: ₹${totalReceived.toLocaleString('en-IN')}, Due: ₹${Math.max(0, totalWorth - totalReceived).toLocaleString('en-IN')}` });
+    return res.json({
+      message: `Transaction Recorded Successfully! Received: ₹${newInstallment.toLocaleString('en-IN')}, Total Received: ₹${totalReceivedAll.toLocaleString('en-IN')}, Remaining Due: ₹${Math.max(0, totalWorth - totalReceivedAll).toLocaleString('en-IN')}`
+    });
   } catch (err) {
     console.error('Receive payment error:', err);
-    return res.status(500).json({ error: 'Failed to update payment.' });
+    return res.status(500).json({ error: 'Failed to record payment transaction.' });
   }
 });
 

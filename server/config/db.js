@@ -252,6 +252,19 @@ async function initDatabase() {
       );
     `);
 
+    // Payment Transactions History Table
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS payment_transactions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        project_id INT NOT NULL,
+        amount DOUBLE NOT NULL,
+        payment_type VARCHAR(50) NOT NULL DEFAULT 'Part Payment',
+        remarks VARCHAR(255),
+        recorded_by VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     // Credential View Logs Table (Audit)
     await dbRun(`
       CREATE TABLE IF NOT EXISTS credential_view_logs (

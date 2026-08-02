@@ -57,6 +57,14 @@ router.get('/:id', requireAdmin, async (req, res) => {
       [id]
     );
 
+    for (let p of projects) {
+      const txs = await dbAll(
+        `SELECT id, amount, payment_type, remarks, recorded_by, created_at FROM payment_transactions WHERE project_id = ? ORDER BY created_at ASC`,
+        [p.id]
+      );
+      p.transactions = txs || [];
+    }
+
     return res.json({ client, projects });
   } catch (err) {
     console.error('Fetch client detail error:', err);

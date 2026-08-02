@@ -19,6 +19,7 @@ export default function ClientManagement() {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [selectedProjectForPayment, setSelectedProjectForPayment] = useState(null);
   const [newReceivedAmount, setNewReceivedAmount] = useState('');
+  const [transactionRemarks, setTransactionRemarks] = useState('');
   const [updatingPayment, setUpdatingPayment] = useState(false);
 
   const [formData, setFormData] = useState({ name: '', email: '', mobile: '' });
@@ -93,7 +94,8 @@ export default function ClientManagement() {
 
   const handleOpenPaymentModal = (project) => {
     setSelectedProjectForPayment(project);
-    setNewReceivedAmount(project.received_amount !== undefined ? project.received_amount : (project.advance_amount || 0));
+    setNewReceivedAmount('');
+    setTransactionRemarks('');
     setPaymentModalOpen(true);
   };
 
@@ -103,17 +105,20 @@ export default function ClientManagement() {
     setUpdatingPayment(true);
     try {
       await api.post(`/projects/${selectedProjectForPayment.id}/receive-payment`, {
-        receivedAmount: parseFloat(newReceivedAmount || 0)
+        receivedAmount: parseFloat(newReceivedAmount || 0),
+        remarks: transactionRemarks
       });
-      setToast({ message: 'Client Payment Updated Successfully!', type: 'success' });
+      setToast({ message: 'Payment Transaction Recorded Successfully!', type: 'success' });
       setPaymentModalOpen(false);
+      setNewReceivedAmount('');
+      setTransactionRemarks('');
       if (selectedClient) {
         handleViewProjects(selectedClient);
       }
       fetchClients();
     } catch (err) {
       console.error('Update payment error:', err);
-      setToast({ message: err.response?.data?.error || 'Failed to update payment', type: 'error' });
+      setToast({ message: err.response?.data?.error || 'Failed to record payment transaction', type: 'error' });
     } finally {
       setUpdatingPayment(false);
     }
@@ -407,9 +412,45 @@ export default function ClientManagement() {
                           className="px-3.5 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
                         >
                           <IndianRupee className="w-3.5 h-3.5" />
-                          <span>Update Received Payment</span>
+                          <span>Record New Payment Received</span>
                         </button>
                       </div>
+
+                      {/* Payment Transactions Audit Trail & History */}
+                      {p.transactions && p.transactions.length > 0 && (
+                        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                          <p className="font-bold text-slate-800 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <CreditCard className="w-3.5 h-3.5 text-brand-500" />
+                              Payment Transaction History ({p.transactions.length} Transactions)
+                            </span>
+                            <span className="text-[11px] font-mono text-emerald-600">
+                              Total Collected: {formatCurrency((p.advance_amount || 0) + (p.received_amount || 0))}
+                            </span>
+                          </p>
+                          <div className="space-y-2 pt-1">
+                            {p.transactions.map((tx, idx) => (
+                              <div key={tx.id || idx} className="p-2.5 bg-white border border-gray-200 rounded-lg flex items-center justify-between shadow-xs">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-extrabold text-emerald-600 text-sm">
+                                      + {formatCurrency(tx.amount)}
+                                    </span>
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tx.payment_type === 'Advance Payment' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
+                                      {tx.payment_type}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-gray-500 mt-0.5">{tx.remarks || 'Payment received'}</p>
+                                </div>
+                                <div className="text-right text-[11px] text-gray-400">
+                                  <p className="font-medium text-slate-700">{formatDate(tx.created_at)}</p>
+                                  <p className="text-[10px]">By: {tx.recorded_by || 'Admin'}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Assignment Remarks */}
                       {p.assignment_remarks && (
@@ -434,7 +475,7 @@ export default function ClientManagement() {
         <Modal
           isOpen={paymentModalOpen}
           onClose={() => setPaymentModalOpen(false)}
-          title={`Update Payment Received: ${selectedProjectForPayment.project_name || `Project #${selectedProjectForPayment.id}`}`}
+          title={`Record Payment Transaction: ${selectedProjectForPayment.project_name || `Project #${selectedProjectForPayment.id}`}`}
           maxWidth="max-w-md"
         >
           <form onSubmit={handleSavePaymentUpdate} className="space-y-4">
@@ -444,15 +485,15 @@ export default function ClientManagement() {
                 <span className="font-bold text-slate-800">{formatCurrency(selectedProjectForPayment.total_worth || 0)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Advance Payment Given:</span>
+                <span className="text-gray-500">Initial Advance Paid:</span>
                 <span className="font-bold text-emerald-600">{formatCurrency(selectedProjectForPayment.advance_amount || 0)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Further Payment Received:</span>
+                <span className="text-gray-500">Further Installments Received:</span>
                 <span className="font-bold text-blue-600">{formatCurrency(selectedProjectForPayment.received_amount || 0)}</span>
               </div>
               <div className="flex justify-between pt-1.5 border-t border-gray-200">
-                <span className="text-slate-800 font-bold">Total Received (Advance + Further):</span>
+                <span className="text-slate-800 font-bold">Total Accumulated Received:</span>
                 <span className="font-extrabold text-brand-600 text-sm">{formatCurrency((selectedProjectForPayment.advance_amount || 0) + (selectedProjectForPayment.received_amount || 0))}</span>
               </div>
               <div className="flex justify-between">
@@ -463,20 +504,33 @@ export default function ClientManagement() {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                Further / Additional Payment Received (₹)
+                New Payment Amount Received Today (₹) *
               </label>
               <input
                 type="number"
-                min="0"
+                min="1"
                 step="500"
                 required
                 value={newReceivedAmount}
                 onChange={(e) => setNewReceivedAmount(e.target.value)}
-                placeholder="Enter additional amount received after advance e.g. 5000"
-                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:bg-white focus:outline-none focus:border-brand-500"
+                placeholder="e.g. 5000"
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-brand-500 shadow-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Transaction Mode / Remarks (Optional)
+              </label>
+              <input
+                type="text"
+                value={transactionRemarks}
+                onChange={(e) => setTransactionRemarks(e.target.value)}
+                placeholder="e.g. Bank Transfer / UPI / Cash"
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:border-brand-500"
               />
               <p className="text-[11px] text-gray-400 mt-1">
-                Total Received = Advance (₹{(selectedProjectForPayment.advance_amount || 0).toLocaleString('en-IN')}) + Further Payment (₹{parseFloat(newReceivedAmount || 0).toLocaleString('en-IN')}) = ₹{((selectedProjectForPayment.advance_amount || 0) + parseFloat(newReceivedAmount || 0)).toLocaleString('en-IN')}.
+                This transaction will be recorded with exact Date & Time stamp in the project timeline.
               </p>
             </div>
 
