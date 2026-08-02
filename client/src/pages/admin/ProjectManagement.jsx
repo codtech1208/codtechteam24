@@ -58,6 +58,8 @@ export default function ProjectManagement() {
     appCost: '',
     employeePayout: '',
     totalWorth: '',
+    advanceAmount: '',
+    receivedAmount: '',
     employeeId: '',
     remarks: ''
   });
@@ -150,6 +152,8 @@ export default function ProjectManagement() {
       appCost: '',
       employeePayout: '',
       totalWorth: '',
+      advanceAmount: '',
+      receivedAmount: '',
       employeeId: '',
       remarks: ''
     });
@@ -170,6 +174,8 @@ export default function ProjectManagement() {
       appCost: '',
       employeePayout: p.assigned_amount || '',
       totalWorth: p.total_worth,
+      advanceAmount: p.advance_amount !== undefined ? p.advance_amount : '',
+      receivedAmount: p.received_amount !== undefined ? p.received_amount : (p.advance_amount || ''),
       employeeId: p.assigned_employee_id || '',
       remarks: p.assignment_remarks || ''
     });
@@ -207,6 +213,8 @@ export default function ProjectManagement() {
           projectName: formData.projectName,
           projectType: combinedProjectType,
           totalWorth: formData.totalWorth,
+          advanceAmount: formData.advanceAmount,
+          receivedAmount: formData.receivedAmount,
           employeeId: formData.employeeId,
           assignedAmount: totalEmployeeAmount,
           remarks: formData.remarks
@@ -220,6 +228,7 @@ export default function ProjectManagement() {
           clientMobile: formData.clientMobile,
           projectType: combinedProjectType,
           totalWorth: formData.totalWorth,
+          advanceAmount: formData.advanceAmount,
           employeeId: formData.employeeId,
           assignedAmount: totalEmployeeAmount,
           remarks: formData.remarks || `Web: ${formData.webType} (₹${formData.webCost || 0}), App: ${formData.appType} (₹${formData.appCost || 0})`
@@ -229,71 +238,78 @@ export default function ProjectManagement() {
       setModalOpen(false);
       fetchProjects(pagination.currentPage);
     } catch (err) {
-      setToast({ message: err.response?.data?.error || 'Project Assigned Successfully!', type: 'success' });
-      setModalOpen(false);
-      fetchProjects(pagination.currentPage);
+      console.error('Save project error:', err);
+      setToast({ message: err.response?.data?.error || 'Failed to save project assignment', type: 'error' });
     }
   };
 
   const handleDelete = async (p) => {
-    if (!window.confirm(`Are you sure you want to delete Project #${p.id}?`)) return;
+    if (!window.confirm(`Are you sure you want to delete project ${p.project_name || p.id}?`)) return;
     try {
       await api.delete(`/projects/${p.id}`);
       setToast({ message: 'Project Deleted Successfully', type: 'success' });
       fetchProjects(pagination.currentPage);
     } catch (err) {
-      setProjects((prev) => prev.filter((item) => item.id !== p.id));
-      setToast({ message: 'Project Deleted Successfully', type: 'success' });
+      setToast({ message: 'Failed to delete project', type: 'error' });
     }
   };
 
   const columns = [
     {
-      header: 'ID',
-      accessorKey: 'id',
-      render: (row) => <span className="font-mono text-xs font-bold text-slate-500">#{row.id}</span>
-    },
-    {
-      header: 'Project & Client',
+      header: 'Project Name',
       render: (row) => (
         <div>
-          <p className="font-bold text-slate-900 text-sm">{row.project_name || `${row.client_name} Project`}</p>
-          <p className="text-xs text-gray-500 font-medium">{row.client_name} ({row.client_email})</p>
+          <p className="font-bold text-slate-800 text-sm">{row.project_name || `Project #${row.id}`}</p>
+          <p className="text-xs text-gray-500 font-medium">Type: {row.project_type}</p>
+          <p className="text-[10px] text-gray-400">ID: #{row.id} • Created {formatDate(row.created_at)}</p>
         </div>
       )
     },
     {
-      header: 'Project Type',
-      accessorKey: 'project_type',
+      header: 'Client Info',
       render: (row) => (
-        <span className="font-semibold text-slate-700 bg-gray-100 px-2.5 py-1 rounded-lg text-xs">
-          {row.project_type}
-        </span>
+        <div className="text-xs">
+          <p className="font-semibold text-slate-800">{row.client_name}</p>
+          <p className="text-gray-500">{row.client_email}</p>
+          <p className="text-gray-400 font-mono text-[11px]">{row.client_mobile}</p>
+        </div>
       )
     },
     {
-      header: 'Total Client Value (Admin Only)',
-      render: (row) => <span className="font-bold text-slate-900">{formatCurrency(row.total_worth)}</span>
-    },
-    {
-      header: 'Assigned Employee & Payout',
+      header: 'Assigned Employee',
       render: (row) => (
-        <div>
+        <div className="text-xs">
           {row.assigned_employee_name ? (
-            <span className="font-medium text-slate-800 text-xs flex items-center gap-1">
-              <UserCheck className="w-3.5 h-3.5 text-brand-500" /> {row.assigned_employee_name}
-            </span>
+            <>
+              <p className="font-bold text-slate-800">{row.assigned_employee_name}</p>
+              <p className="text-[10px] font-mono text-brand-600">{row.assigned_employee_code}</p>
+            </>
           ) : (
-            <span className="text-xs text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded-md">Unassigned</span>
+            <span className="text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded text-[11px]">Unassigned</span>
           )}
-          {row.assigned_amount !== undefined ? (
-            <p className="text-[11px] text-brand-600 font-bold">Employee Payout: {formatCurrency(row.assigned_amount)}</p>
-          ) : null}
         </div>
       )
     },
     {
-      header: 'Employee Payment Paid Checkbox',
+      header: 'Total Client Worth',
+      render: (row) => (
+        <span className="font-bold text-slate-800">{formatCurrency(row.total_worth)}</span>
+      )
+    },
+    {
+      header: 'Advance Paid',
+      render: (row) => (
+        <span className="font-bold text-emerald-600">{formatCurrency(row.advance_amount || 0)}</span>
+      )
+    },
+    {
+      header: 'Employee Payout',
+      render: (row) => (
+        <span className="font-bold text-brand-600">{formatCurrency(row.assigned_amount || 0)}</span>
+      )
+    },
+    {
+      header: 'Payment Status',
       render: (row) => (
         <button
           onClick={() => handleTogglePaymentStatus(row)}
@@ -305,7 +321,7 @@ export default function ProjectManagement() {
           }`}
         >
           <CreditCard className="w-3.5 h-3.5" />
-          {row.payment_status === 'Paid' ? 'PAID ✅ (Click to Unpay)' : 'MARK PAYMENT PAID'}
+          {row.payment_status === 'Paid' ? 'PAID ✅' : 'MARK PAID'}
         </button>
       )
     },
@@ -318,34 +334,22 @@ export default function ProjectManagement() {
       )
     },
     {
-      header: 'Credentials',
-      render: (row) => (
-        row.has_credentials ? (
-          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
-            <ShieldCheck className="w-3 h-3" /> Submitted
-          </span>
-        ) : (
-          <span className="text-[10px] text-gray-400">Pending</span>
-        )
-      )
-    },
-    {
       header: 'Actions',
       render: (row) => (
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => navigate(`/admin/projects/${row.id}`)}
-            title="View Details"
-            className="p-1.5 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+            className="px-2.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-brand-600 font-semibold text-xs rounded-lg transition-colors border border-orange-200 shadow-sm flex items-center gap-1"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-3.5 h-3.5" />
+            <span>View</span>
           </button>
           <button
             onClick={() => handleOpenEdit(row)}
-            title="Edit Project & Assignment"
-            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold text-xs rounded-lg transition-colors border border-blue-200 flex items-center gap-1"
           >
-            <Edit className="w-4 h-4" />
+            <Edit className="w-3.5 h-3.5" />
+            <span>Edit</span>
           </button>
           <button
             onClick={() => handleDelete(row)}
@@ -630,6 +634,42 @@ export default function ProjectManagement() {
                 />
                 <span className="text-[10px] text-gray-400 block mt-0.5">Auto-fills from component costs above.</span>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div>
+                <label className="block text-xs font-bold text-emerald-700 mb-1">
+                  Advance Payment Given Amount (₹)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="500"
+                  value={formData.advanceAmount}
+                  onChange={(e) => setFormData({ ...formData, advanceAmount: e.target.value })}
+                  placeholder="e.g. 5000"
+                  className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-lg text-xs font-bold text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+                <span className="text-[10px] text-emerald-600 block mt-0.5">Advance money paid by client.</span>
+              </div>
+
+              {selectedProject && (
+                <div>
+                  <label className="block text-xs font-bold text-brand-700 mb-1">
+                    Total Payment Received Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="500"
+                    value={formData.receivedAmount}
+                    onChange={(e) => setFormData({ ...formData, receivedAmount: e.target.value })}
+                    placeholder="Total money received"
+                    className="w-full px-3 py-2 bg-white border border-brand-300 rounded-lg text-xs font-bold text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  />
+                  <span className="text-[10px] text-brand-600 block mt-0.5">Total received money from client.</span>
+                </div>
+              )}
             </div>
           </div>
 

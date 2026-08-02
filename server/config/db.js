@@ -169,12 +169,18 @@ async function initDatabase() {
         project_name VARCHAR(255),
         project_type VARCHAR(255) NOT NULL,
         total_worth DOUBLE NOT NULL DEFAULT 0,
+        advance_amount DOUBLE NOT NULL DEFAULT 0,
+        received_amount DOUBLE NOT NULL DEFAULT 0,
         status VARCHAR(50) NOT NULL DEFAULT 'Ongoing',
         payment_status VARCHAR(50) NOT NULL DEFAULT 'Unpaid',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Ensure columns exist for existing tables
+    try { await dbRun("ALTER TABLE projects ADD COLUMN advance_amount DOUBLE NOT NULL DEFAULT 0"); } catch (e) {}
+    try { await dbRun("ALTER TABLE projects ADD COLUMN received_amount DOUBLE NOT NULL DEFAULT 0"); } catch (e) {}
 
     // Assignments table
     await dbRun(`
