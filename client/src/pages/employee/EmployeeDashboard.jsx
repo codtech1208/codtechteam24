@@ -417,71 +417,71 @@ export default function EmployeeDashboard() {
           title={`Assigned Form Details: ${selectedProject.project_name || selectedProject.client_name}`}
           maxWidth="max-w-2xl"
         >
-          <div className="space-y-5">
+          <div className="space-y-4 min-w-0">
             {/* Header info */}
-            <div className="p-4 bg-orange-50 rounded-2xl border border-orange-200 flex items-center justify-between">
-              <div>
+            <div className="p-3 sm:p-4 bg-orange-50 rounded-2xl border border-orange-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 min-w-0">
+              <div className="min-w-0">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600">Assigned Project #{selectedProject.id}</span>
-                <h3 className="text-lg font-bold text-slate-900">{selectedProject.project_name || `${selectedProject.client_name} Project`}</h3>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">{selectedProject.project_name || `${selectedProject.client_name} Project`}</h3>
                 <p className="text-xs text-slate-600 font-medium">Category: {selectedProject.project_type}</p>
               </div>
-              <span className={`text-xs font-bold px-3 py-1 rounded-full border ${getStatusBadge(selectedProject.status)}`}>
+              <span className={`text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full border ${getStatusBadge(selectedProject.status)}`}>
                 {selectedProject.status}
               </span>
             </div>
 
             {/* Client Contact Info Section */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-              <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <User className="w-4 h-4 text-brand-500" /> Client Contact Information
+            <div className="p-3 sm:p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5 min-w-0">
+              <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider flex items-center gap-1.5 min-w-0">
+                <User className="w-4 h-4 text-brand-500 shrink-0" /> Client Contact Information
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div className="p-3 bg-white border rounded-xl">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs min-w-0">
+                <div className="p-2.5 sm:p-3 bg-white border rounded-xl min-w-0">
                   <span className="text-gray-400 block font-medium">Client Name</span>
-                  <span className="font-bold text-slate-900 text-sm">{selectedProject.client_name}</span>
+                  <span className="font-bold text-slate-900 text-xs sm:text-sm truncate block">{selectedProject.client_name}</span>
                 </div>
-                <div className="p-3 bg-white border rounded-xl">
+                <div className="p-2.5 sm:p-3 bg-white border rounded-xl min-w-0">
                   <span className="text-gray-400 block font-medium">Client Email</span>
-                  <a href={`mailto:${selectedProject.client_email}`} className="font-bold text-brand-600 hover:underline flex items-center gap-1 mt-0.5">
-                    <Mail className="w-3.5 h-3.5" /> {selectedProject.client_email}
+                  <a href={`mailto:${selectedProject.client_email}`} className="font-bold text-brand-600 hover:underline flex items-center gap-1 mt-0.5 truncate text-xs">
+                    <Mail className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{selectedProject.client_email}</span>
                   </a>
                 </div>
-                <div className="p-3 bg-white border rounded-xl">
+                <div className="p-2.5 sm:p-3 bg-white border rounded-xl min-w-0">
                   <span className="text-gray-400 block font-medium">Client Mobile</span>
-                  <a href={`tel:${selectedProject.client_mobile}`} className="font-bold text-emerald-600 hover:underline flex items-center gap-1 mt-0.5">
-                    <Phone className="w-3.5 h-3.5" /> {selectedProject.client_mobile || '+91 9876543210'}
+                  <a href={`tel:${selectedProject.client_mobile}`} className="font-bold text-emerald-600 hover:underline flex items-center gap-1 mt-0.5 text-xs">
+                    <Phone className="w-3.5 h-3.5 shrink-0" /> {selectedProject.client_mobile || 'N/A'}
                   </a>
                 </div>
               </div>
             </div>
 
             {/* Employee Payout & Assignment Instructions */}
-            <div className="p-4 bg-brand-50/60 border border-brand-200 rounded-2xl space-y-3">
-              <h4 className="font-bold text-xs text-brand-900 uppercase tracking-wider flex items-center gap-1.5">
-                <DollarSign className="w-4 h-4 text-brand-600" /> Employee Payout & Instructions
+            <div className="p-3 sm:p-4 bg-brand-50/60 border border-brand-200 rounded-2xl space-y-2.5 min-w-0">
+              <h4 className="font-bold text-xs text-brand-900 uppercase tracking-wider flex items-center gap-1.5 min-w-0">
+                <DollarSign className="w-4 h-4 text-brand-600 shrink-0" /> Employee Payout &amp; Instructions
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3 bg-white border border-brand-200 rounded-xl">
-                  <span className="text-brand-600 font-semibold block">Your Assigned Payout</span>
-                  <span className="text-xl font-bold text-brand-700">{formatCurrency(selectedProject.assigned_amount)}</span>
+              <div className="grid grid-cols-2 gap-2.5 text-xs min-w-0">
+                <div className="p-2.5 sm:p-3 bg-white border border-brand-200 rounded-xl min-w-0">
+                  <span className="text-brand-600 font-semibold block text-[10px] sm:text-xs">Your Assigned Payout</span>
+                  <span className="text-base sm:text-xl font-bold text-brand-700">{formatCurrency(selectedProject.assigned_amount)}</span>
                 </div>
-                <div className="p-3 bg-white border border-brand-200 rounded-xl">
-                  <span className="text-slate-500 font-semibold block">Payment Status</span>
+                <div className="p-2.5 sm:p-3 bg-white border border-brand-200 rounded-xl min-w-0">
+                  <span className="text-slate-500 font-semibold block text-[10px] sm:text-xs">Payment Status</span>
                   <span className="text-xs font-bold text-slate-800 uppercase mt-1 block">
                     {selectedProject.payment_status === 'Paid' ? 'PAID ✅' : 'PENDING ⏳'}
                   </span>
                 </div>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <span className="text-xs font-semibold text-slate-700 block mb-1">Assignment Remarks / Instructions:</span>
-                <div className="p-3 bg-white border rounded-xl text-xs text-slate-800 font-medium leading-relaxed">
+                <div className="p-2.5 sm:p-3 bg-white border rounded-xl text-xs text-slate-800 font-medium leading-relaxed break-words">
                   {selectedProject.assignment_remarks || 'No special remarks provided by Super Admin.'}
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-gray-100">
+            <div className="flex justify-end pt-2 border-t border-gray-100 min-w-0">
               <button
                 type="button"
                 onClick={() => setDetailsModalOpen(false)}
@@ -502,160 +502,163 @@ export default function EmployeeDashboard() {
           title={`Mark Project #${selectedProject.id} Completed & Submit Required Credentials`}
           maxWidth="max-w-3xl"
         >
-          <form onSubmit={handleSubmitCompletion} className="space-y-5">
-            <div className="p-3.5 bg-slate-900 text-white rounded-2xl text-xs flex items-center gap-3">
-              <ShieldCheck className="w-6 h-6 text-brand-400 shrink-0" />
-              <div>
-                <p className="font-bold text-brand-400">Required Completion Credentials</p>
-                <p className="text-slate-300 text-[11px]">
-                  Please enter all Domain, Hosting, and Git repository credentials. Once submitted, the project will update to <strong>Completed</strong> on the Super Admin Panel.
+          <form onSubmit={handleSubmitCompletion} className="space-y-4 min-w-0">
+            <div className="p-3 bg-slate-900 text-white rounded-2xl text-xs flex items-center gap-2.5 min-w-0">
+              <ShieldCheck className="w-5 h-5 text-brand-400 shrink-0" />
+              <div className="min-w-0">
+                <p className="font-bold text-brand-400 text-xs">Required Completion Credentials</p>
+                <p className="text-slate-300 text-[10px] sm:text-[11px] leading-tight">
+                  Enter Domain, Hosting, and Git credentials. Once submitted, status updates to <strong>Completed</strong>.
                 </p>
               </div>
             </div>
 
             {/* 1. Domain Details */}
-            <div className="p-4 bg-orange-50/60 border border-orange-200 rounded-2xl space-y-3">
-              <h4 className="font-bold text-xs text-orange-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Globe className="w-4 h-4 text-brand-600" /> 1. Domain Platform Details
+            <div className="p-3 sm:p-4 bg-orange-50/60 border border-orange-200 rounded-2xl space-y-2.5 min-w-0">
+              <h4 className="font-bold text-xs text-orange-900 uppercase tracking-wider flex items-center gap-1.5 min-w-0">
+                <Globe className="w-4 h-4 text-brand-600 shrink-0" />
+                <span className="truncate">1. Domain Platform Details</span>
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Platform Name *</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 min-w-0">
+                <div className="min-w-0">
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Platform Name *</label>
                   <select
                     value={credForm.domainPlatform}
                     onChange={(e) => setCredForm({ ...credForm, domainPlatform: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:border-brand-500"
+                    className="w-full min-w-0 px-2.5 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:border-brand-500"
                   >
                     {DOMAIN_PLATFORMS.map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Domain Email *</label>
+                <div className="min-w-0">
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Domain Email *</label>
                   <input
                     type="email"
                     required
                     value={credForm.domainEmail}
                     onChange={(e) => setCredForm({ ...credForm, domainEmail: e.target.value })}
                     placeholder="domain@client.com"
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-brand-500"
+                    className="w-full min-w-0 px-2.5 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-brand-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Domain Password *</label>
+                <div className="min-w-0">
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Domain Password *</label>
                   <input
                     type="password"
                     required
                     value={credForm.domainPassword}
                     onChange={(e) => setCredForm({ ...credForm, domainPassword: e.target.value })}
                     placeholder="••••••••••••"
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-brand-500"
+                    className="w-full min-w-0 px-2.5 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-brand-500"
                   />
                 </div>
               </div>
             </div>
 
             {/* 2. Hosting Details */}
-            <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-2xl space-y-3">
-              <h4 className="font-bold text-xs text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Server className="w-4 h-4 text-blue-600" /> 2. Hosting Provider Details
+            <div className="p-3 sm:p-4 bg-blue-50/60 border border-blue-200 rounded-2xl space-y-2.5 min-w-0">
+              <h4 className="font-bold text-xs text-blue-900 uppercase tracking-wider flex items-center gap-1.5 min-w-0">
+                <Server className="w-4 h-4 text-blue-600 shrink-0" />
+                <span className="truncate">2. Hosting Provider Details</span>
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Platform Name *</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 min-w-0">
+                <div className="min-w-0">
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Platform Name *</label>
                   <select
                     value={credForm.hostingProvider}
                     onChange={(e) => setCredForm({ ...credForm, hostingProvider: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-500"
+                    className="w-full min-w-0 px-2.5 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-500"
                   >
                     {HOSTING_PROVIDERS.map((h) => (
                       <option key={h} value={h}>{h}</option>
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Hosting Email *</label>
+                <div className="min-w-0">
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Hosting Email *</label>
                   <input
                     type="email"
                     required
                     value={credForm.hostingEmail}
                     onChange={(e) => setCredForm({ ...credForm, hostingEmail: e.target.value })}
                     placeholder="hosting@client.com"
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-blue-500"
+                    className="w-full min-w-0 px-2.5 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-blue-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Hosting Password *</label>
+                <div className="min-w-0">
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Hosting Password *</label>
                   <input
                     type="password"
                     required
                     value={credForm.hostingPassword}
                     onChange={(e) => setCredForm({ ...credForm, hostingPassword: e.target.value })}
                     placeholder="••••••••••••"
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-blue-500"
+                    className="w-full min-w-0 px-2.5 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-blue-500"
                   />
                 </div>
               </div>
             </div>
 
             {/* 3. Git Details */}
-            <div className="p-4 bg-slate-100 border border-slate-300 rounded-2xl space-y-3">
-              <h4 className="font-bold text-xs text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Code className="w-4 h-4 text-slate-700" /> 3. Git & GitHub Details
+            <div className="p-3 sm:p-4 bg-slate-100 border border-slate-300 rounded-2xl space-y-2.5 min-w-0">
+              <h4 className="font-bold text-xs text-slate-900 uppercase tracking-wider flex items-center gap-1.5 min-w-0">
+                <Code className="w-4 h-4 text-slate-700 shrink-0" />
+                <span className="truncate">3. Git &amp; GitHub Details</span>
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">GitHub ID / Email *</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 min-w-0">
+                <div className="min-w-0">
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">GitHub ID / Email *</label>
                   <input
                     type="text"
                     required
                     value={credForm.githubEmail}
                     onChange={(e) => setCredForm({ ...credForm, githubEmail: e.target.value })}
                     placeholder="github_username_or_email"
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-slate-500"
+                    className="w-full min-w-0 px-2.5 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-slate-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">GitHub Password / Token *</label>
+                <div className="min-w-0">
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">GitHub Password / Token *</label>
                   <input
                     type="password"
                     required
                     value={credForm.githubPassword}
                     onChange={(e) => setCredForm({ ...credForm, githubPassword: e.target.value })}
                     placeholder="••••••••••••"
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-slate-500"
+                    className="w-full min-w-0 px-2.5 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-slate-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Git Repository Link *</label>
+                <div className="min-w-0">
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Git Repository Link *</label>
                   <input
                     type="url"
                     required
                     value={credForm.githubRepository}
                     onChange={(e) => setCredForm({ ...credForm, githubRepository: e.target.value })}
                     placeholder="https://github.com/org/repo"
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-slate-500"
+                    className="w-full min-w-0 px-2.5 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-slate-500"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 min-w-0">
               <button
                 type="button"
                 onClick={() => setCredModalOpen(false)}
-                className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
+                className="px-3 py-2 text-xs sm:text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-6 py-2.5 text-sm font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-50"
+                className="px-4 sm:px-6 py-2.5 text-xs sm:text-sm font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 text-white rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 disabled:opacity-50 justify-center"
               >
-                <Send className="w-4 h-4" />
-                {submitting ? 'Submitting & Updating Status...' : 'SUBMIT CREDENTIALS & MARK COMPLETED'}
+                <Send className="w-3.5 h-3.5" />
+                <span>{submitting ? 'Submitting...' : 'SUBMIT & MARK COMPLETED'}</span>
               </button>
             </div>
           </form>
