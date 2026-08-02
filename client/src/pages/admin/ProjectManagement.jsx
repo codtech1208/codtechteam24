@@ -297,9 +297,9 @@ export default function ProjectManagement() {
       )
     },
     {
-      header: 'Advance Paid',
+      header: 'Total Received',
       render: (row) => (
-        <span className="font-bold text-emerald-600">{formatCurrency(row.advance_amount || 0)}</span>
+        <span className="font-bold text-emerald-600">{formatCurrency((row.advance_amount || 0) + (row.received_amount || 0))}</span>
       )
     },
     {

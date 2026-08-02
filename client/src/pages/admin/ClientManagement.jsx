@@ -162,17 +162,13 @@ export default function ClientManagement() {
       render: (row) => <span className="font-bold text-slate-800">{formatCurrency(row.total_spent || 0)}</span>
     },
     {
-      header: 'Advance Paid',
-      render: (row) => <span className="font-bold text-emerald-600">{formatCurrency(row.total_advance_received || 0)}</span>
-    },
-    {
       header: 'Total Received',
-      render: (row) => <span className="font-bold text-brand-600">{formatCurrency(row.total_received_payment || row.total_advance_received || 0)}</span>
+      render: (row) => <span className="font-bold text-emerald-600">{formatCurrency(row.total_received_payment || 0)}</span>
     },
     {
       header: 'Due Amount',
       render: (row) => {
-        const due = row.total_due_amount !== undefined ? row.total_due_amount : (row.total_spent - (row.total_received_payment || row.total_advance_received || 0));
+        const due = row.total_due_amount !== undefined ? row.total_due_amount : (row.total_spent - (row.total_received_payment || 0));
         return (
           <span className={`font-bold px-2.5 py-1 rounded-full text-xs border ${due > 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
             {due > 0 ? formatCurrency(due) : '₹0 (Paid ✅)'}
@@ -369,7 +365,7 @@ export default function ClientManagement() {
                       </div>
 
                       {/* Project Details Grid (Entered in Assigned Project Form) */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-gray-50 p-3.5 rounded-xl border border-gray-100">
                         <div>
                           <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
                             <User className="w-3.5 h-3.5 text-blue-500" /> Assigned Developer
@@ -382,16 +378,9 @@ export default function ClientManagement() {
 
                         <div>
                           <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
-                            <IndianRupee className="w-3.5 h-3.5 text-emerald-500" /> Advance Paid
+                            <IndianRupee className="w-3.5 h-3.5 text-emerald-500" /> Total Received Payment
                           </p>
-                          <p className="font-bold text-emerald-600 text-sm">{formatCurrency(p.advance_amount || 0)}</p>
-                        </div>
-
-                        <div>
-                          <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
-                            <IndianRupee className="w-3.5 h-3.5 text-brand-500" /> Total Received
-                          </p>
-                          <p className="font-bold text-brand-600 text-sm">{formatCurrency((p.advance_amount || 0) + (p.received_amount || 0))}</p>
+                          <p className="font-bold text-emerald-600 text-sm">{formatCurrency((p.advance_amount || 0) + (p.received_amount || 0))}</p>
                         </div>
 
                         <div>
@@ -436,8 +425,8 @@ export default function ClientManagement() {
                                     <span className="font-extrabold text-emerald-600 text-sm">
                                       + {formatCurrency(tx.amount)}
                                     </span>
-                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tx.payment_type === 'Advance Payment' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
-                                      {tx.payment_type}
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                                      Payment Received
                                     </span>
                                   </div>
                                   <p className="text-[11px] text-gray-500 mt-0.5">{tx.remarks || 'Payment received'}</p>
@@ -485,18 +474,10 @@ export default function ClientManagement() {
                 <span className="font-bold text-slate-800">{formatCurrency(selectedProjectForPayment.total_worth || 0)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Initial Advance Paid:</span>
-                <span className="font-bold text-emerald-600">{formatCurrency(selectedProjectForPayment.advance_amount || 0)}</span>
+                <span className="text-gray-500">Total Received So Far:</span>
+                <span className="font-extrabold text-emerald-600 text-sm">{formatCurrency((selectedProjectForPayment.advance_amount || 0) + (selectedProjectForPayment.received_amount || 0))}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Further Installments Received:</span>
-                <span className="font-bold text-blue-600">{formatCurrency(selectedProjectForPayment.received_amount || 0)}</span>
-              </div>
-              <div className="flex justify-between pt-1.5 border-t border-gray-200">
-                <span className="text-slate-800 font-bold">Total Accumulated Received:</span>
-                <span className="font-extrabold text-brand-600 text-sm">{formatCurrency((selectedProjectForPayment.advance_amount || 0) + (selectedProjectForPayment.received_amount || 0))}</span>
-              </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between pt-1 border-t border-gray-200">
                 <span className="text-slate-800 font-bold">Current Remaining Due:</span>
                 <span className="font-extrabold text-rose-600 text-sm">{formatCurrency(Math.max(0, (selectedProjectForPayment.total_worth || 0) - ((selectedProjectForPayment.advance_amount || 0) + (selectedProjectForPayment.received_amount || 0))))}</span>
               </div>
@@ -504,16 +485,16 @@ export default function ClientManagement() {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                New Payment Amount Received Today (₹) *
+                Payment Amount Received Today (₹) *
               </label>
               <input
                 type="number"
                 min="1"
-                step="500"
+                step="1"
                 required
                 value={newReceivedAmount}
                 onChange={(e) => setNewReceivedAmount(e.target.value)}
-                placeholder="e.g. 5000"
+                placeholder="Enter amount e.g. 1000, 5000"
                 className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-brand-500 shadow-xs"
               />
             </div>
