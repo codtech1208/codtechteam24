@@ -25,7 +25,7 @@ const transporter = nodemailer.createTransport({
  */
 async function sendPasswordResetEmail(toEmail, userName, resetToken) {
   const domain = 'https://codtechteam.com';
-  const resetLink = `${domain}/#/reset-password?email=${encodeURIComponent(toEmail)}&token=${resetToken}`;
+  const resetLink = `${domain}/reset-password?email=${encodeURIComponent(toEmail)}&token=${resetToken}`;
 
   const htmlContent = `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0;">

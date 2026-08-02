@@ -201,8 +201,10 @@ export default function App() {
             ) : (
               <Navigate to="/employee/dashboard" replace />
             )
+          ) : window.location.hash && window.location.hash.includes('reset-password') ? (
+            <Navigate to={`/reset-password${window.location.hash.replace('#/reset-password', '')}`} replace />
           ) : (
-            <Navigate to="/login" replace />
+            <Navigate to="/employeelogin" replace />
           )
         }
       />

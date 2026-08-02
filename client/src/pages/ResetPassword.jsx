@@ -17,8 +17,18 @@ export default function ResetPassword() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    const emailParam = searchParams.get('email') || '';
-    const tokenParam = searchParams.get('token') || '';
+    let emailParam = searchParams.get('email') || '';
+    let tokenParam = searchParams.get('token') || '';
+
+    // Fallback if URL came with legacy hash #/reset-password?email=...
+    if (!emailParam && window.location.hash) {
+      const hashStr = window.location.hash;
+      const matchEmail = hashStr.match(/email=([^&]*)/);
+      const matchToken = hashStr.match(/token=([^&]*)/);
+      if (matchEmail) emailParam = decodeURIComponent(matchEmail[1]);
+      if (matchToken) tokenParam = decodeURIComponent(matchToken[1]);
+    }
+
     if (emailParam) setEmail(emailParam);
     if (tokenParam) setToken(tokenParam);
   }, [searchParams]);
@@ -46,9 +56,9 @@ export default function ResetPassword() {
         newPassword
       });
       setSuccess(true);
-      setToast({ message: res.data?.message || 'Password updated successfully! Redirecting to login...', type: 'success' });
+      setToast({ message: res.data?.message || 'Password updated successfully! Redirecting to employee login...', type: 'success' });
       setTimeout(() => {
-        navigate('/login', { replace: true });
+        navigate('/employeelogin', { replace: true });
       }, 1500);
     } catch (err) {
       console.error('Reset password token error:', err);
