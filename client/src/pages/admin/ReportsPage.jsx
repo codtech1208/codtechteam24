@@ -31,11 +31,23 @@ export default function ReportsPage() {
     fetchReport(reportType);
   }, [reportType]);
 
+  const formatReportValue = (key, val) => {
+    if (val === null || val === undefined) return 'N/A';
+    if (typeof val === 'number' && (key.includes('worth') || key.includes('amount') || key.includes('revenue') || key.includes('earnings') || key.includes('payout') || key.includes('margin') || key.includes('spent'))) {
+      return formatCurrency(val);
+    }
+    if (key.includes('created') || key.includes('assigned') || key.includes('changed') || key.includes('submitted') || key.includes('date') || key.includes('at') || key.includes('time')) {
+      return formatDate(val);
+    }
+    return String(val);
+  };
+
   // Handle PDF Export
   const handleExportPDF = () => {
     if (!reportData || !reportData.length) return;
-    const columns = Object.keys(reportData[0]);
-    const rows = reportData.map((row) => Object.values(row).map((v) => String(v ?? '')));
+    const rawCols = Object.keys(reportData[0]);
+    const columns = rawCols.map((k) => k.replace(/_/g, ' ').toUpperCase());
+    const rows = reportData.map((row) => rawCols.map((k) => formatReportValue(k, row[k])));
     exportToPDF(reportTitle, columns, rows, reportType);
     setToast({ message: 'PDF Report Exported Successfully', type: 'success' });
   };
@@ -43,14 +55,28 @@ export default function ReportsPage() {
   // Handle Excel Export
   const handleExportExcel = () => {
     if (!reportData || !reportData.length) return;
-    exportToExcel(`CODTECH_${reportTitle}`, reportData);
+    const formattedData = reportData.map((row) => {
+      const obj = {};
+      Object.keys(row).forEach((k) => {
+        obj[k.replace(/_/g, ' ').toUpperCase()] = formatReportValue(k, row[k]);
+      });
+      return obj;
+    });
+    exportToExcel(`CODTECH_${reportTitle}`, formattedData);
     setToast({ message: 'Excel Report Exported Successfully', type: 'success' });
   };
 
   // Handle CSV Export
   const handleExportCSV = () => {
     if (!reportData || !reportData.length) return;
-    exportToCSV(`CODTECH_${reportTitle}`, reportData);
+    const formattedData = reportData.map((row) => {
+      const obj = {};
+      Object.keys(row).forEach((k) => {
+        obj[k.replace(/_/g, ' ').toUpperCase()] = formatReportValue(k, row[k]);
+      });
+      return obj;
+    });
+    exportToCSV(`CODTECH_${reportTitle}`, formattedData);
     setToast({ message: 'CSV Report Exported Successfully', type: 'success' });
   };
 
@@ -64,6 +90,11 @@ export default function ReportsPage() {
         const val = row[key];
         if (typeof val === 'number' && (key.includes('worth') || key.includes('amount') || key.includes('revenue') || key.includes('earnings') || key.includes('payout') || key.includes('margin') || key.includes('spent'))) {
           return <span className="font-bold text-brand-600">{formatCurrency(val)}</span>;
+        }
+        if (key.includes('created') || key.includes('assigned') || key.includes('changed') || key.includes('submitted') || key.includes('date') || key.includes('at') || key.includes('time')) {
+          if (val) {
+            return <span className="text-slate-700 font-medium">{formatDate(val)}</span>;
+          }
         }
         return <span className="text-slate-700">{String(val ?? 'N/A')}</span>;
       }
