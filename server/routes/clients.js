@@ -65,7 +65,23 @@ router.get('/:id', requireAdmin, async (req, res) => {
       p.transactions = txs || [];
     }
 
-    return res.json({ client, projects });
+    // Compute aggregates so frontend Portfolio Value shows correctly
+    const total_spent = projects.reduce((sum, p) => sum + parseFloat(p.total_worth || 0), 0);
+    const total_received_payment = projects.reduce((sum, p) => sum + parseFloat(p.advance_amount || 0) + parseFloat(p.received_amount || 0), 0);
+    const total_due_amount = Math.max(0, total_spent - total_received_payment);
+    const total_projects = projects.length;
+    const completed_projects = projects.filter(p => p.status === 'Completed').length;
+
+    const enrichedClient = {
+      ...client,
+      total_spent,
+      total_received_payment,
+      total_due_amount,
+      total_projects,
+      completed_projects
+    };
+
+    return res.json({ client: enrichedClient, projects });
   } catch (err) {
     console.error('Fetch client detail error:', err);
     return res.status(500).json({ error: 'Failed to fetch client detail.' });

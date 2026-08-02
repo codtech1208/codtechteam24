@@ -413,4 +413,43 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// PUT /api/projects/transactions/:txId - Edit a payment transaction (Admin only)
+router.put('/transactions/:txId', requireAdmin, async (req, res) => {
+  try {
+    const { txId } = req.params;
+    const { amount, remarks } = req.body;
+
+    const tx = await dbGet('SELECT * FROM payment_transactions WHERE id = ?', [txId]);
+    if (!tx) return res.status(404).json({ error: 'Transaction not found.' });
+
+    const newAmount = parseFloat(amount);
+    if (!newAmount || newAmount <= 0) return res.status(400).json({ error: 'Amount must be greater than 0.' });
+
+    // Update the transaction
+    await dbRun(
+      `UPDATE payment_transactions SET amount = ?, remarks = ? WHERE id = ?`,
+      [newAmount, remarks || tx.remarks, txId]
+    );
+
+    // Recalculate project received_amount and payment_status from all transactions
+    const project = await dbGet('SELECT * FROM projects WHERE id = ?', [tx.project_id]);
+    const sumRow = await dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM payment_transactions WHERE project_id = ?`, [tx.project_id]);
+    const totalReceivedAll = sumRow ? sumRow.total : 0;
+    const advAmount = parseFloat(project.advance_amount || 0);
+    const subsequentReceived = Math.max(0, totalReceivedAll - advAmount);
+    const totalWorth = parseFloat(project.total_worth || 0);
+    const newStatus = totalReceivedAll >= totalWorth && totalWorth > 0 ? 'Paid' : (totalReceivedAll > 0 ? 'Partially Paid' : 'Unpaid');
+
+    await dbRun(
+      `UPDATE projects SET received_amount = ?, payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [subsequentReceived, newStatus, tx.project_id]
+    );
+
+    return res.json({ message: `Transaction updated. New Total Received: ₹${totalReceivedAll.toLocaleString('en-IN')}, Due: ₹${Math.max(0, totalWorth - totalReceivedAll).toLocaleString('en-IN')}` });
+  } catch (err) {
+    console.error('Edit transaction error:', err);
+    return res.status(500).json({ error: 'Failed to edit transaction.' });
+  }
+});
+
 module.exports = router;

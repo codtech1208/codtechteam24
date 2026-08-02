@@ -4,7 +4,7 @@ import DataTable from '../../components/common/DataTable';
 import Modal from '../../components/common/Modal';
 import Toast from '../../components/common/Toast';
 import { formatCurrency, formatDate, getStatusBadge } from '../../utils/formatters';
-import { UserPlus, Edit, Trash2, Eye, Briefcase, Calendar, Phone, Mail, User, ShieldCheck, IndianRupee, FileText, CreditCard } from 'lucide-react';
+import { UserPlus, Edit, Trash2, Eye, Briefcase, Calendar, Phone, Mail, User, ShieldCheck, IndianRupee, FileText, CreditCard, Pencil } from 'lucide-react';
 
 export default function ClientManagement() {
   const [clients, setClients] = useState([]);
@@ -21,6 +21,12 @@ export default function ClientManagement() {
   const [newReceivedAmount, setNewReceivedAmount] = useState('');
   const [transactionRemarks, setTransactionRemarks] = useState('');
   const [updatingPayment, setUpdatingPayment] = useState(false);
+
+  const [editTxModalOpen, setEditTxModalOpen] = useState(false);
+  const [editingTx, setEditingTx] = useState(null);
+  const [editTxAmount, setEditTxAmount] = useState('');
+  const [editTxRemarks, setEditTxRemarks] = useState('');
+  const [savingEditTx, setSavingEditTx] = useState(false);
 
   const [formData, setFormData] = useState({ name: '', email: '', mobile: '' });
   const [toast, setToast] = useState(null);
@@ -121,6 +127,37 @@ export default function ClientManagement() {
       setToast({ message: err.response?.data?.error || 'Failed to record payment transaction', type: 'error' });
     } finally {
       setUpdatingPayment(false);
+    }
+  };
+
+  const handleOpenEditTx = (tx) => {
+    setEditingTx(tx);
+    setEditTxAmount(tx.amount);
+    setEditTxRemarks(tx.remarks || '');
+    setEditTxModalOpen(true);
+  };
+
+  const handleSaveEditTx = async (e) => {
+    e.preventDefault();
+    if (!editingTx) return;
+    setSavingEditTx(true);
+    try {
+      await api.put(`/projects/transactions/${editingTx.id}`, {
+        amount: parseFloat(editTxAmount),
+        remarks: editTxRemarks
+      });
+      setToast({ message: 'Transaction updated successfully!', type: 'success' });
+      setEditTxModalOpen(false);
+      setEditingTx(null);
+      if (selectedClient) {
+        handleViewProjects(selectedClient);
+      }
+      fetchClients();
+    } catch (err) {
+      console.error('Edit transaction error:', err);
+      setToast({ message: err.response?.data?.error || 'Failed to edit transaction', type: 'error' });
+    } finally {
+      setSavingEditTx(false);
     }
   };
 
@@ -431,9 +468,18 @@ export default function ClientManagement() {
                                   </div>
                                   <p className="text-[11px] text-gray-500 mt-0.5">{tx.remarks || 'Payment received'}</p>
                                 </div>
-                                <div className="text-right text-[11px] text-gray-400">
-                                  <p className="font-medium text-slate-700">{formatDate(tx.created_at)}</p>
-                                  <p className="text-[10px]">By: {tx.recorded_by || 'Admin'}</p>
+                                <div className="flex items-center gap-3">
+                                  <div className="text-right text-[11px] text-gray-400">
+                                    <p className="font-medium text-slate-700">{formatDate(tx.created_at)}</p>
+                                    <p className="text-[10px]">By: {tx.recorded_by || 'Admin'}</p>
+                                  </div>
+                                  <button
+                                    onClick={() => handleOpenEditTx(tx)}
+                                    title="Edit this transaction"
+                                    className="p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               </div>
                             ))}
@@ -532,6 +578,65 @@ export default function ClientManagement() {
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
                   'Save Payment Update'
+                )}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Modal: Edit Payment Transaction */}
+      {editingTx && (
+        <Modal
+          isOpen={editTxModalOpen}
+          onClose={() => { setEditTxModalOpen(false); setEditingTx(null); }}
+          title="Edit Payment Transaction"
+          maxWidth="max-w-sm"
+        >
+          <form onSubmit={handleSaveEditTx} className="space-y-4">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+              ⚠️ Editing this transaction will automatically recalculate the project's Total Received and Due Balance.
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Corrected Amount (₹) *</label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                required
+                value={editTxAmount}
+                onChange={(e) => setEditTxAmount(e.target.value)}
+                placeholder="Enter correct amount"
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Remarks (Optional)</label>
+              <input
+                type="text"
+                value={editTxRemarks}
+                onChange={(e) => setEditTxRemarks(e.target.value)}
+                placeholder="e.g. Corrected cash payment"
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:border-brand-500"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => { setEditTxModalOpen(false); setEditingTx(null); }}
+                className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingEditTx}
+                className="px-5 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold text-xs shadow-md inline-flex items-center gap-1.5"
+              >
+                {savingEditTx ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  'Save Changes'
                 )}
               </button>
             </div>
