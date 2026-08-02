@@ -6,7 +6,8 @@ import Header from './components/layout/Header';
 
 import SplashScreen from './components/common/SplashScreen';
 
-// Pages
+import SuperAdminLogin from './pages/SuperAdminLogin';
+import EmployeeLogin from './pages/EmployeeLogin';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -21,7 +22,7 @@ import EmployeeDashboard from './pages/employee/EmployeeDashboard';
 function RequireAdmin({ children }) {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/superadminlogin" replace />;
   if (user.role !== 'super_admin') return <Navigate to="/employee/dashboard" replace />;
   return children;
 }
@@ -30,7 +31,7 @@ function RequireAdmin({ children }) {
 function RequireEmployeeOrAdmin({ children }) {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/employeelogin" replace />;
   return children;
 }
 
@@ -66,7 +67,35 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Login & Reset Password Pages */}
+      {/* Separate Dedicated Login Pages */}
+      <Route
+        path="/superadminlogin"
+        element={
+          user ? (
+            user.role === 'super_admin' ? (
+              <Navigate to="/admin/dashboard" replace />
+            ) : (
+              <Navigate to="/employee/dashboard" replace />
+            )
+          ) : (
+            <SuperAdminLogin />
+          )
+        }
+      />
+      <Route
+        path="/employeelogin"
+        element={
+          user ? (
+            user.role === 'super_admin' ? (
+              <Navigate to="/admin/dashboard" replace />
+            ) : (
+              <Navigate to="/employee/dashboard" replace />
+            )
+          ) : (
+            <EmployeeLogin />
+          )
+        }
+      />
       <Route
         path="/login"
         element={
@@ -77,7 +106,7 @@ export default function App() {
               <Navigate to="/employee/dashboard" replace />
             )
           ) : (
-            <Login />
+            <Navigate to="/employeelogin" replace />
           )
         }
       />
