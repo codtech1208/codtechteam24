@@ -25,8 +25,14 @@ router.post('/', async (req, res) => {
     const project = await dbGet('SELECT * FROM projects WHERE id = ?', [projectId]);
     if (!project) return res.status(404).json({ error: 'Project not found.' });
 
-    // Auto-mark project status as Completed when credentials are submitted
-    await dbRun('UPDATE projects SET status = "Completed", updated_at = CURRENT_TIMESTAMP WHERE id = ?', [projectId]);
+    // Auto-mark project status as Completed when credentials are submitted and log to status_logs
+    if (project.status !== 'Completed') {
+      await dbRun(
+        'INSERT INTO status_logs (project_id, old_status, new_status, changed_by) VALUES (?, ?, ?, ?)',
+        [projectId, project.status || 'Pending', 'Completed', user ? user.name : 'Employee']
+      );
+      await dbRun('UPDATE projects SET status = "Completed", updated_at = CURRENT_TIMESTAMP WHERE id = ?', [projectId]);
+    }
 
     // Role gate for employee
     if (user.role === 'employee') {

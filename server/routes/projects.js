@@ -189,10 +189,16 @@ router.post('/', requireAdmin, async (req, res) => {
 
     const projNameStr = projectName ? projectName.trim() : `${clientName.trim()} Project`;
     const projRes = await dbRun(
-      `INSERT INTO projects (client_id, project_name, project_type, total_worth, status, payment_status) VALUES (?, ?, ?, ?, 'Ongoing', 'Unpaid')`,
+      `INSERT INTO projects (client_id, project_name, project_type, total_worth, status, payment_status) VALUES (?, ?, ?, ?, 'Pending', 'Unpaid')`,
       [clientId, projNameStr, projectType, parseFloat(totalWorth)]
     );
     const projectId = projRes.lastID;
+
+    // Record initial creation in status_logs
+    await dbRun(
+      'INSERT INTO status_logs (project_id, old_status, new_status, changed_by) VALUES (?, ?, ?, ?)',
+      [projectId, 'None', 'Pending', req.user ? req.user.name : 'Super Admin']
+    );
 
     if (employeeId) {
       const emp = await dbGet('SELECT name FROM users WHERE id = ? AND role = "employee"', [employeeId]);
@@ -307,8 +313,15 @@ router.patch('/:id/status', async (req, res) => {
     const project = await dbGet('SELECT * FROM projects WHERE id = ?', [id]);
     if (!project) return res.status(404).json({ error: 'Project not found.' });
 
+    if (status && status !== project.status) {
+      await dbRun(
+        'INSERT INTO status_logs (project_id, old_status, new_status, changed_by) VALUES (?, ?, ?, ?)',
+        [id, project.status || 'Pending', status, user ? user.name : 'System']
+      );
+    }
+
     await dbRun(`UPDATE projects SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [status, id]);
-    return res.json({ message: 'Status Updated Successfully' });
+    return res.json({ message: `Status Updated Successfully to '${status}'` });
   } catch (err) {
     console.error('Status update error:', err);
     return res.status(500).json({ error: 'Failed to update status.' });
