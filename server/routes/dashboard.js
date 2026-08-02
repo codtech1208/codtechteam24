@@ -32,7 +32,7 @@ router.get('/admin', requireAdmin, async (req, res) => {
       dbGet("SELECT COUNT(*) as count FROM projects WHERE status = 'Ongoing'"),
       dbGet('SELECT COALESCE(SUM(total_worth), 0) as total FROM projects'),
       dbGet('SELECT COALESCE(SUM(advance_amount), 0) as total FROM projects'),
-      dbGet('SELECT COALESCE(SUM(CASE WHEN received_amount > 0 THEN received_amount ELSE advance_amount END), 0) as total FROM projects'),
+      dbGet('SELECT COALESCE(SUM(advance_amount + received_amount), 0) as total FROM projects'),
       dbGet('SELECT COALESCE(SUM(assigned_amount), 0) as total FROM assignments'),
       dbGet("SELECT COUNT(*) as count FROM users WHERE role = 'employee' AND status = 'active'"),
       dbGet('SELECT COUNT(*) as count FROM clients'),

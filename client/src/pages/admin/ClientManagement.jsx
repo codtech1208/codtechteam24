@@ -386,15 +386,15 @@ export default function ClientManagement() {
                           <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
                             <IndianRupee className="w-3.5 h-3.5 text-brand-500" /> Total Received
                           </p>
-                          <p className="font-bold text-brand-600 text-sm">{formatCurrency(p.received_amount || p.advance_amount || 0)}</p>
+                          <p className="font-bold text-brand-600 text-sm">{formatCurrency((p.advance_amount || 0) + (p.received_amount || 0))}</p>
                         </div>
 
                         <div>
                           <p className="text-gray-400 font-medium mb-0.5 flex items-center gap-1">
                             <IndianRupee className="w-3.5 h-3.5 text-rose-500" /> Due Balance
                           </p>
-                          <p className={`font-bold text-sm ${((p.total_worth || 0) - (p.received_amount || p.advance_amount || 0)) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                            {formatCurrency(Math.max(0, (p.total_worth || 0) - (p.received_amount || p.advance_amount || 0)))}
+                          <p className={`font-bold text-sm ${((p.total_worth || 0) - ((p.advance_amount || 0) + (p.received_amount || 0))) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            {formatCurrency(Math.max(0, (p.total_worth || 0) - ((p.advance_amount || 0) + (p.received_amount || 0))))}
                           </p>
                         </div>
                       </div>
@@ -447,15 +447,23 @@ export default function ClientManagement() {
                 <span className="text-gray-500">Advance Payment Given:</span>
                 <span className="font-bold text-emerald-600">{formatCurrency(selectedProjectForPayment.advance_amount || 0)}</span>
               </div>
-              <div className="flex justify-between pt-1 border-t border-gray-200">
-                <span className="text-slate-700 font-semibold">Current Total Received:</span>
-                <span className="font-extrabold text-brand-600">{formatCurrency(selectedProjectForPayment.received_amount || selectedProjectForPayment.advance_amount || 0)}</span>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Further Payment Received:</span>
+                <span className="font-bold text-blue-600">{formatCurrency(selectedProjectForPayment.received_amount || 0)}</span>
+              </div>
+              <div className="flex justify-between pt-1.5 border-t border-gray-200">
+                <span className="text-slate-800 font-bold">Total Received (Advance + Further):</span>
+                <span className="font-extrabold text-brand-600 text-sm">{formatCurrency((selectedProjectForPayment.advance_amount || 0) + (selectedProjectForPayment.received_amount || 0))}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-800 font-bold">Current Remaining Due:</span>
+                <span className="font-extrabold text-rose-600 text-sm">{formatCurrency(Math.max(0, (selectedProjectForPayment.total_worth || 0) - ((selectedProjectForPayment.advance_amount || 0) + (selectedProjectForPayment.received_amount || 0))))}</span>
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                New Total Payment Received from Client (₹)
+                Further / Additional Payment Received (₹)
               </label>
               <input
                 type="number"
@@ -464,11 +472,11 @@ export default function ClientManagement() {
                 required
                 value={newReceivedAmount}
                 onChange={(e) => setNewReceivedAmount(e.target.value)}
-                placeholder="Enter total amount received"
+                placeholder="Enter additional amount received after advance e.g. 5000"
                 className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:bg-white focus:outline-none focus:border-brand-500"
               />
               <p className="text-[11px] text-gray-400 mt-1">
-                Updating this will automatically recalculate the Due Balance and update the Payment Status & Total Received Revenue on the Dashboard.
+                Total Received = Advance (₹{(selectedProjectForPayment.advance_amount || 0).toLocaleString('en-IN')}) + Further Payment (₹{parseFloat(newReceivedAmount || 0).toLocaleString('en-IN')}) = ₹{((selectedProjectForPayment.advance_amount || 0) + parseFloat(newReceivedAmount || 0)).toLocaleString('en-IN')}.
               </p>
             </div>
 

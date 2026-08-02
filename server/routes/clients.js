@@ -15,8 +15,8 @@ router.get('/', requireAdmin, async (req, res) => {
         SUM(CASE WHEN p.status = 'Completed' THEN 1 ELSE 0 END) as completed_projects,
         COALESCE(SUM(p.total_worth), 0) as total_spent,
         COALESCE(SUM(p.advance_amount), 0) as total_advance_received,
-        COALESCE(SUM(CASE WHEN p.received_amount > 0 THEN p.received_amount ELSE p.advance_amount END), 0) as total_received_payment,
-        COALESCE(SUM(CASE WHEN (p.total_worth - (CASE WHEN p.received_amount > 0 THEN p.received_amount ELSE p.advance_amount END)) > 0 THEN (p.total_worth - (CASE WHEN p.received_amount > 0 THEN p.received_amount ELSE p.advance_amount END)) ELSE 0 END), 0) as total_due_amount
+        COALESCE(SUM(p.advance_amount + p.received_amount), 0) as total_received_payment,
+        COALESCE(SUM(CASE WHEN (p.total_worth - (p.advance_amount + p.received_amount)) > 0 THEN (p.total_worth - (p.advance_amount + p.received_amount)) ELSE 0 END), 0) as total_due_amount
       FROM clients c
       LEFT JOIN projects p ON c.id = p.client_id
     `;

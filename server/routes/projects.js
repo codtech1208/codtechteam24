@@ -193,8 +193,8 @@ router.post('/', requireAdmin, async (req, res) => {
     const initPaymentStatus = advAmt >= totWorth && totWorth > 0 ? 'Paid' : (advAmt > 0 ? 'Partially Paid' : 'Unpaid');
 
     const projRes = await dbRun(
-      `INSERT INTO projects (client_id, project_name, project_type, total_worth, advance_amount, received_amount, status, payment_status) VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?)`,
-      [clientId, projNameStr, projectType, totWorth, advAmt, advAmt, initPaymentStatus]
+      `INSERT INTO projects (client_id, project_name, project_type, total_worth, advance_amount, received_amount, status, payment_status) VALUES (?, ?, ?, ?, ?, 0, 'Pending', ?)`,
+      [clientId, projNameStr, projectType, totWorth, advAmt, initPaymentStatus]
     );
     const projectId = projRes.lastID;
 
@@ -245,9 +245,10 @@ router.put('/:id', requireAdmin, async (req, res) => {
     }
 
     const advAmt = advanceAmount !== undefined && advanceAmount !== '' ? parseFloat(advanceAmount) : (project.advance_amount || 0);
-    const recAmt = receivedAmount !== undefined && receivedAmount !== '' ? parseFloat(receivedAmount) : (project.received_amount || advAmt);
+    const recAmt = receivedAmount !== undefined && receivedAmount !== '' ? parseFloat(receivedAmount) : (project.received_amount || 0);
     const totWorth = parseFloat(totalWorth !== undefined ? totalWorth : project.total_worth);
-    const payStatus = recAmt >= totWorth && totWorth > 0 ? 'Paid' : (recAmt > 0 ? 'Partially Paid' : (paymentStatus || project.payment_status || 'Unpaid'));
+    const totalRec = advAmt + recAmt;
+    const payStatus = totalRec >= totWorth && totWorth > 0 ? 'Paid' : (totalRec > 0 ? 'Partially Paid' : (paymentStatus || project.payment_status || 'Unpaid'));
 
     await dbRun(
       `UPDATE projects SET project_name = ?, project_type = ?, total_worth = ?, advance_amount = ?, received_amount = ?, status = ?, payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
@@ -285,7 +286,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
       }
     }
 
-    return res.json({ message: 'Project Updated Successfully' });
+    return res.json({ message: 'Project Details & Assignment Updated Successfully' });
   } catch (err) {
     console.error('Update project error:', err);
     return res.status(500).json({ error: 'Failed to update project.' });
@@ -305,7 +306,7 @@ router.patch('/:id/payment-status', requireAdmin, async (req, res) => {
     const project = await dbGet('SELECT * FROM projects WHERE id = ?', [id]);
     if (!project) return res.status(404).json({ error: 'Project not found.' });
 
-    const recAmt = paymentStatus === 'Paid' ? parseFloat(project.total_worth || 0) : parseFloat(project.advance_amount || 0);
+    const recAmt = paymentStatus === 'Paid' ? Math.max(0, parseFloat(project.total_worth || 0) - parseFloat(project.advance_amount || 0)) : 0;
     await dbRun(`UPDATE projects SET payment_status = ?, received_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [paymentStatus, recAmt, id]);
 
     return res.json({ message: `Project #${id} payment status updated to ${paymentStatus}` });
@@ -324,21 +325,23 @@ router.post('/:id/receive-payment', requireAdmin, async (req, res) => {
     const project = await dbGet('SELECT * FROM projects WHERE id = ?', [id]);
     if (!project) return res.status(404).json({ error: 'Project not found.' });
 
-    const newReceived = parseFloat(receivedAmount || 0);
+    const newSubsequentReceived = parseFloat(receivedAmount || 0);
+    const advAmount = parseFloat(project.advance_amount || 0);
     const totalWorth = parseFloat(project.total_worth || 0);
-    const newStatus = newReceived >= totalWorth ? 'Paid' : (newReceived > 0 ? 'Partially Paid' : 'Unpaid');
+    const totalReceived = advAmount + newSubsequentReceived;
+    const newStatus = totalReceived >= totalWorth && totalWorth > 0 ? 'Paid' : (totalReceived > 0 ? 'Partially Paid' : 'Unpaid');
 
     await dbRun(
       `UPDATE projects SET received_amount = ?, payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      [newReceived, newStatus, id]
+      [newSubsequentReceived, newStatus, id]
     );
 
     await dbRun(
       'INSERT INTO activity_logs (user_id, user_name, action, details) VALUES (?, ?, ?, ?)',
-      [req.user.id, req.user.name, 'Payment Received Updated', `Updated Project #${id} received payment to ₹${newReceived} (${newStatus})`]
+      [req.user.id, req.user.name, 'Payment Received Updated', `Updated Project #${id} received payment. Advance: ₹${advAmount}, Further: ₹${newSubsequentReceived}, Total Received: ₹${totalReceived}`]
     );
 
-    return res.json({ message: `Payment Received Updated Successfully. Received: ₹${newReceived.toLocaleString('en-IN')}, Status: ${newStatus}` });
+    return res.json({ message: `Payment Received Updated Successfully. Total Received: ₹${totalReceived.toLocaleString('en-IN')}, Due: ₹${Math.max(0, totalWorth - totalReceived).toLocaleString('en-IN')}` });
   } catch (err) {
     console.error('Receive payment error:', err);
     return res.status(500).json({ error: 'Failed to update payment.' });
