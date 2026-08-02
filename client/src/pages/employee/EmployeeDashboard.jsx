@@ -234,15 +234,15 @@ export default function EmployeeDashboard() {
             </div>
 
         <div className="overflow-x-auto -mx-3 sm:mx-0">
-          <table className="w-full text-left text-sm border-collapse min-w-[600px]">
+          <table className="w-full text-left text-sm border-collapse min-w-[540px]">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-gray-400 font-semibold text-xs uppercase tracking-wider">
-                <th className="px-3 sm:px-5 py-3">Project &amp; Client</th>
-                <th className="px-3 sm:px-5 py-3">Category</th>
-                <th className="px-3 sm:px-5 py-3">Payout</th>
-                <th className="px-3 sm:px-5 py-3">Payment</th>
-                <th className="px-3 sm:px-5 py-3">Stage</th>
-                <th className="px-3 sm:px-5 py-3 text-right">Actions</th>
+              <tr className="bg-gray-50 border-b border-gray-100 text-gray-400 font-semibold text-[10px] sm:text-xs uppercase tracking-wider">
+                <th className="px-2 sm:px-4 py-2.5">Project &amp; Client</th>
+                <th className="px-2 sm:px-4 py-2.5">Type</th>
+                <th className="px-2 sm:px-4 py-2.5">Payout</th>
+                <th className="px-2 sm:px-4 py-2.5">Payment</th>
+                <th className="px-2 sm:px-4 py-2.5">Stage</th>
+                <th className="px-2 sm:px-4 py-2.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -259,78 +259,73 @@ export default function EmployeeDashboard() {
 
                   return (
                     <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
-                      {/* Project & Client Contact Info */}
-                      <td className="px-5 py-4">
-                        <div className="space-y-1">
-                          <p className="font-bold text-slate-900 text-sm">{p.project_name || `${p.client_name} Project`}</p>
-                          <div className="flex flex-col text-xs text-slate-600 gap-0.5">
+                      {/* Project & Client Info */}
+                      <td className="px-2 sm:px-4 py-3">
+                        <div className="space-y-0.5 min-w-[130px]">
+                          <p className="font-bold text-slate-900 text-xs leading-tight">{p.project_name || `${p.client_name} Project`}</p>
+                          <div className="flex flex-col text-[10px] text-slate-600 gap-0.5 mt-1">
                             <span className="font-semibold text-slate-800 flex items-center gap-1">
-                              <User className="w-3.5 h-3.5 text-brand-500" /> Client: {p.client_name}
+                              <User className="w-3 h-3 text-brand-500 shrink-0" /> {p.client_name}
                             </span>
-                            <a href={`mailto:${p.client_email}`} className="text-brand-600 hover:underline flex items-center gap-1">
-                              <Mail className="w-3.5 h-3.5 text-brand-500" /> {p.client_email}
+                            <a href={`mailto:${p.client_email}`} className="text-brand-600 hover:underline flex items-center gap-1 truncate max-w-[130px]">
+                              <Mail className="w-3 h-3 text-brand-500 shrink-0" /> {p.client_email}
                             </a>
                             <a href={`tel:${p.client_mobile}`} className="text-emerald-600 font-medium hover:underline flex items-center gap-1">
-                              <Phone className="w-3.5 h-3.5 text-emerald-500" /> {p.client_mobile || '+91 9876543210'}
+                              <Phone className="w-3 h-3 text-emerald-500 shrink-0" /> {p.client_mobile || 'N/A'}
                             </a>
                           </div>
-                          {p.assignment_remarks && (
-                            <p className="text-[11px] text-gray-500 italic mt-1 bg-gray-50 p-1.5 rounded-md border border-gray-100">
-                              Remarks: {p.assignment_remarks}
-                            </p>
-                          )}
                         </div>
                       </td>
-                      <td className="px-5 py-4 font-semibold text-slate-700">{p.project_type}</td>
-                      <td className="px-5 py-4 font-bold text-brand-600">{formatCurrency(p.assigned_amount)}</td>
-                      <td className="px-5 py-4">
+                      <td className="px-2 sm:px-4 py-3 text-[10px] sm:text-xs font-semibold text-slate-700 whitespace-nowrap">{p.project_type}</td>
+                      <td className="px-2 sm:px-4 py-3 text-[10px] sm:text-xs font-bold text-brand-600 whitespace-nowrap">{formatCurrency(p.assigned_amount)}</td>
+                      <td className="px-2 sm:px-4 py-3">
                         {isPaid ? (
-                          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full inline-flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5 text-emerald-600" /> PAID (Payment Received)
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 whitespace-nowrap">
+                            <Check className="w-3 h-3" /> PAID
                           </span>
                         ) : (
-                          <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full inline-flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 text-amber-600" /> Payment Pending
+                          <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 whitespace-nowrap">
+                            <Clock className="w-3 h-3" /> Pending
                           </span>
                         )}
                       </td>
-                      {/* Workflow Status Dropdown Selector */}
-                      <td className="px-5 py-4">
+                      {/* Workflow Status Dropdown */}
+                      <td className="px-2 sm:px-4 py-3">
                         <select
                           value={p.status || 'Pending'}
                           onChange={(e) => handleStatusChange(p, e.target.value)}
-                          className={`text-xs font-bold px-3 py-1.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-brand-500/20 cursor-pointer shadow-sm ${getStatusBadge(p.status)}`}
+                          className={`text-[10px] sm:text-xs font-bold px-2 py-1 rounded-lg border focus:outline-none focus:ring-2 focus:ring-brand-500/20 cursor-pointer max-w-[120px] sm:max-w-none ${getStatusBadge(p.status)}`}
                         >
                           <option value="Pending" className="bg-white text-slate-800">⏳ Pending</option>
-                          <option value="UI Stage Completed" className="bg-white text-slate-800">🎨 UI Stage Completed</option>
-                          <option value="Backend Started" className="bg-white text-slate-800">⚙️ Backend Started</option>
-                          <option value="Project is Ready to Live" className="bg-white text-slate-800">🚀 Project is Ready to Live</option>
-                          <option value="Completed" className="bg-white text-emerald-700 font-bold">✅ Completed (Submit Credentials)</option>
+                          <option value="UI Stage Completed" className="bg-white text-slate-800">🎨 UI Done</option>
+                          <option value="Backend Started" className="bg-white text-slate-800">⚙️ Backend</option>
+                          <option value="Project is Ready to Live" className="bg-white text-slate-800">🚀 Ready to Live</option>
+                          <option value="Completed" className="bg-white text-emerald-700 font-bold">✅ Completed</option>
                         </select>
                       </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="px-2 sm:px-4 py-3 text-right">
+                        <div className="flex flex-col items-end gap-1.5">
                           <button
                             onClick={() => handleOpenDetailsModal(p)}
                             title="View Full Client & Form Details"
-                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-slate-700 rounded-xl font-semibold text-xs inline-flex items-center gap-1 transition-all"
+                            className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-slate-700 rounded-lg font-semibold text-[10px] inline-flex items-center gap-1 transition-all whitespace-nowrap"
                           >
-                            <Eye className="w-3.5 h-3.5" /> Client Info
+                            <Eye className="w-3 h-3" /> Client Info
                           </button>
                           {isCompleted ? (
                             <button
                               onClick={() => handleOpenCompletionModal(p)}
                               title="Update Credentials"
-                              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-xs inline-flex items-center gap-1 transition-all"
+                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg font-bold text-[10px] inline-flex items-center gap-1 transition-all whitespace-nowrap"
                             >
-                              <ShieldCheck className="w-4 h-4 text-emerald-600" /> Credentials Submitted ✅
+                              <ShieldCheck className="w-3 h-3" /> ✅ Done
                             </button>
                           ) : (
                             <button
                               onClick={() => handleOpenCompletionModal(p)}
-                              className="px-3.5 py-1.5 bg-gradient-to-r from-brand-500 to-orange-600 hover:opacity-95 text-white rounded-xl font-semibold text-xs shadow-md shadow-brand-500/20 inline-flex items-center gap-1.5 transition-all"
+                              className="px-2.5 py-1 bg-gradient-to-r from-brand-500 to-orange-600 hover:opacity-95 text-white rounded-lg font-semibold text-[10px] shadow-md shadow-brand-500/20 inline-flex items-center gap-1 transition-all whitespace-nowrap"
                             >
-                              <KeyRound className="w-3.5 h-3.5" /> Mark Completed
+                              <KeyRound className="w-3 h-3" /> Complete
                             </button>
                           )}
                         </div>

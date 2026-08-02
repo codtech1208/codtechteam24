@@ -24,18 +24,20 @@ router.get('/', async (req, res) => {
     let notifications = [];
 
     if (user.role === 'super_admin') {
+      // Super Admin only sees status_update notifications (employee workflow stage changes)
       notifications = await dbAll(
         `SELECT * FROM notifications 
-         WHERE recipient_role = 'super_admin' OR user_id = ? 
+         WHERE recipient_role = 'super_admin' AND type = 'status_update'
          ORDER BY created_at DESC LIMIT 50`,
-        [user.id]
+        []
       );
     } else {
+      // Employee only sees payment_received notifications (when admin records payment for their project)
       notifications = await dbAll(
         `SELECT * FROM notifications 
-         WHERE user_id = ? OR (recipient_role = 'employee' AND (user_id IS NULL OR user_id = ?))
+         WHERE user_id = ? AND type = 'payment_received'
          ORDER BY created_at DESC LIMIT 50`,
-        [user.id, user.id]
+        [user.id]
       );
     }
 
@@ -53,9 +55,9 @@ router.patch('/read-all', async (req, res) => {
   try {
     const user = req.user;
     if (user.role === 'super_admin') {
-      await dbRun(`UPDATE notifications SET is_read = 1 WHERE recipient_role = 'super_admin' OR user_id = ?`, [user.id]);
+      await dbRun(`UPDATE notifications SET is_read = 1 WHERE recipient_role = 'super_admin' AND type = 'status_update'`, []);
     } else {
-      await dbRun(`UPDATE notifications SET is_read = 1 WHERE user_id = ? OR recipient_role = 'employee'`, [user.id]);
+      await dbRun(`UPDATE notifications SET is_read = 1 WHERE user_id = ? AND type = 'payment_received'`, [user.id]);
     }
     return res.json({ message: 'All notifications marked as read.' });
   } catch (err) {

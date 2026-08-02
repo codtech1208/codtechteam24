@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, Bell, CheckCheck, Trash2, X, RefreshCw, Info, CheckCircle2, DollarSign, Key, FolderKanban } from 'lucide-react';
+import { Menu, Bell, CheckCheck, Trash2, X, RefreshCw, Info, CheckCircle2, DollarSign } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import { formatDateTime } from '../../utils/formatters';
@@ -69,19 +69,20 @@ export default function Header({ onMenuClick, title }) {
   };
 
   const getNotifIcon = (type) => {
-    switch (type) {
-      case 'payment_received':
-        return <DollarSign className="w-4 h-4 text-emerald-600 shrink-0" />;
-      case 'status_update':
-        return <CheckCircle2 className="w-4 h-4 text-brand-500 shrink-0" />;
-      case 'credentials_submitted':
-        return <Key className="w-4 h-4 text-purple-600 shrink-0" />;
-      case 'assignment':
-        return <FolderKanban className="w-4 h-4 text-blue-600 shrink-0" />;
-      default:
-        return <Info className="w-4 h-4 text-slate-500 shrink-0" />;
-    }
+    if (type === 'payment_received') return <DollarSign className="w-4 h-4 text-emerald-600 shrink-0" />;
+    if (type === 'status_update') return <CheckCircle2 className="w-4 h-4 text-brand-500 shrink-0" />;
+    return <Info className="w-4 h-4 text-slate-500 shrink-0" />;
   };
+
+  // Panel labels based on role
+  const isAdmin = user?.role === 'super_admin';
+  const panelTitle = isAdmin ? 'Project Status Updates' : 'Payment Notifications';
+  const emptyMessage = isAdmin
+    ? 'No status updates yet.'
+    : 'No payment notifications yet.';
+  const emptySubtext = isAdmin
+    ? 'When employees update a project stage (UI, Backend, Live, Completed), it appears here.'
+    : 'When Super Admin records a payment for your project, it will appear here.';
 
   // Shorten long titles for mobile display
   const shortTitle = {
@@ -138,7 +139,7 @@ export default function Header({ onMenuClick, title }) {
             {/* Dropdown Header */}
             <div className="p-3.5 sm:p-4 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm text-slate-800">Notifications</h3>
+                <h3 className="font-bold text-sm text-slate-800">{panelTitle}</h3>
                 {unreadCount > 0 && (
                   <span className="bg-brand-100 text-brand-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
                     {unreadCount} new
@@ -170,8 +171,8 @@ export default function Header({ onMenuClick, title }) {
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-gray-400">
                   <Bell className="w-8 h-8 text-gray-300 mx-auto mb-2 opacity-60" />
-                  <p className="text-xs font-medium">No notifications yet.</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Status updates & payment activity will appear here.</p>
+                  <p className="text-xs font-medium">{emptyMessage}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{emptySubtext}</p>
                 </div>
               ) : (
                 notifications.map((notif) => {

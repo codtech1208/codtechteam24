@@ -92,10 +92,14 @@ router.post('/forgot-password', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Email address is required.' });
 
     const cleanEmail = email.trim().toLowerCase();
-    let user = await dbGet('SELECT * FROM users WHERE email = ?', [cleanEmail]);
+    const user = await dbGet('SELECT * FROM users WHERE email = ?', [cleanEmail]);
 
+    // Always return success to prevent email enumeration attacks
     if (!user) {
-      user = { id: 1, name: 'Super Admin', email: cleanEmail, role: 'super_admin' };
+      return res.json({
+        message: `If ${cleanEmail} is registered in the system, a password reset link has been sent. Please check your inbox.`,
+        resetLinkSent: true
+      });
     }
 
     // Generate secure 32-byte reset token
@@ -104,18 +108,15 @@ router.post('/forgot-password', async (req, res) => {
 
     resetStore.set(cleanEmail, { token: resetToken, expiresAt });
 
-    // Dispatch email via Nodemailer SMTP to requested email & harishneela83@gmail.com
+    // Dispatch email via Nodemailer SMTP to the requested email
     try {
       await sendPasswordResetEmail(cleanEmail, user.name, resetToken);
-      if (cleanEmail !== 'harishneela83@gmail.com') {
-        await sendPasswordResetEmail('harishneela83@gmail.com', `Super Admin (For ${user.name})`, resetToken);
-      }
     } catch (mailErr) {
       console.error('SMTP Mail Dispatch Error:', mailErr);
     }
 
     return res.json({
-      message: `Password reset email with link has been sent to ${cleanEmail}! Please check your inbox.`,
+      message: `Password reset email has been sent to ${cleanEmail}! Please check your inbox.`,
       resetLinkSent: true
     });
   } catch (err) {
