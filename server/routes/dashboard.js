@@ -116,9 +116,9 @@ router.get('/employee', async (req, res) => {
     );
 
     const assignedProjects = await dbAll(
-      `SELECT p.id, p.project_type, p.total_worth, p.status, p.created_at,
+      `SELECT p.id, p.project_name, p.project_type, p.total_worth, p.status, COALESCE(p.payment_status, 'Unpaid') as payment_status, p.created_at,
               c.name as client_name, c.email as client_email, c.mobile as client_mobile,
-              a.assigned_amount, a.remarks, a.assigned_at,
+              a.assigned_amount, a.remarks as assignment_remarks, a.assigned_at,
               (SELECT COUNT(*) FROM project_credentials pc WHERE pc.project_id = p.id) as has_credentials
        FROM assignments a
        JOIN projects p ON a.project_id = p.id
