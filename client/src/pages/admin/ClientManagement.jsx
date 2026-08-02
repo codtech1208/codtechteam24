@@ -247,14 +247,14 @@ export default function ClientManagement() {
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto animate-fade-in">
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Client Management</h2>
-          <p className="text-xs text-gray-400">Manage client directory, contact information, and assigned project portfolios</p>
+          <h2 className="text-base sm:text-xl font-bold text-slate-800">Client Management</h2>
+          <p className="text-xs text-gray-400">Manage client directory, contact info, and project portfolios</p>
         </div>
         <button
           onClick={handleOpenCreate}
-          className="flex items-center gap-2 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-brand-500/20 transition-all"
+          className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-md shadow-brand-500/20 transition-all whitespace-nowrap w-full sm:w-auto justify-center sm:justify-start"
         >
           <UserPlus className="w-4 h-4" />
           <span>Add New Client</span>

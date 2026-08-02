@@ -213,16 +213,16 @@ export default function EmployeeManagement() {
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
 
       {/* Action Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Employee Management</h2>
+          <h2 className="text-base sm:text-xl font-bold text-slate-800">Employee Management</h2>
           <p className="text-xs text-gray-400">Manage development team, access permissions, and profiles</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none"
+            className="flex-1 sm:flex-none px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs sm:text-sm font-medium text-slate-700 focus:outline-none"
           >
             <option value="all">All Status</option>
             <option value="active">Active Only</option>
@@ -230,7 +230,7 @@ export default function EmployeeManagement() {
           </select>
           <button
             onClick={handleOpenCreate}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-brand-500/20 transition-all"
+            className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-md shadow-brand-500/20 transition-all whitespace-nowrap"
           >
             <UserPlus className="w-4 h-4" />
             <span>Create Employee</span>

@@ -368,75 +368,77 @@ export default function ProjectManagement() {
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
 
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Project Management & Assignment</h2>
-          <p className="text-xs text-gray-400">Create, assign web/app projects to developers, mark payments paid, and track credentials</p>
+          <h2 className="text-base sm:text-xl font-bold text-slate-800">Project Management &amp; Assignment</h2>
+          <p className="text-xs text-gray-400">Create, assign projects to developers, track payments and credentials</p>
         </div>
         <button
           onClick={handleOpenCreate}
-          className="flex items-center gap-2 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-brand-500/20 transition-all"
+          className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-md shadow-brand-500/20 transition-all whitespace-nowrap w-full sm:w-auto justify-center sm:justify-start"
         >
           <FolderPlus className="w-4 h-4" />
-          <span>Assign / Add New Project</span>
+          <span>Add New Project</span>
         </button>
       </div>
 
       {/* Filters Bar */}
-      <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-card flex flex-wrap items-center gap-4 text-xs font-medium">
-        <div>
-          <label className="text-gray-400 block mb-1">Status Filter</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none"
-          >
-            <option value="all">All Statuses</option>
-            <option value="Ongoing">Ongoing</option>
-            <option value="Completed">Completed</option>
-          </select>
-        </div>
+      <div className="p-3 sm:p-4 bg-white rounded-2xl border border-gray-100 shadow-card text-xs font-medium">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <label className="text-gray-400 block mb-1">Status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none text-xs"
+            >
+              <option value="all">All Statuses</option>
+              <option value="Ongoing">Ongoing</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
 
-        <div>
-          <label className="text-gray-400 block mb-1">Project Type</label>
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none"
-          >
-            <option value="all">All Project Types</option>
-            <option value="Static Website">Static Website</option>
-            <option value="Dynamic Website">Dynamic Website</option>
-            <option value="E-Commerce Website">E-Commerce Website</option>
-            <option value="Multi Dynamic Website">Multi Dynamic Website</option>
-            <option value="Android App">Android App</option>
-            <option value="iOS App">iOS App</option>
-          </select>
-        </div>
+          <div>
+            <label className="text-gray-400 block mb-1">Type</label>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none text-xs"
+            >
+              <option value="all">All Types</option>
+              <option value="Static Website">Static Website</option>
+              <option value="Dynamic Website">Dynamic Website</option>
+              <option value="E-Commerce Website">E-Commerce</option>
+              <option value="Multi Dynamic Website">Multi Dynamic</option>
+              <option value="Android App">Android App</option>
+              <option value="iOS App">iOS App</option>
+            </select>
+          </div>
 
-        <div>
-          <label className="text-gray-400 block mb-1">Sort By</label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none"
-          >
-            <option value="created_at">Creation Date</option>
-            <option value="total_worth">Total Worth</option>
-            <option value="client_name">Client Name</option>
-          </select>
-        </div>
+          <div>
+            <label className="text-gray-400 block mb-1">Sort By</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none text-xs"
+            >
+              <option value="created_at">Creation Date</option>
+              <option value="total_worth">Total Worth</option>
+              <option value="client_name">Client Name</option>
+            </select>
+          </div>
 
-        <div>
-          <label className="text-gray-400 block mb-1">Order</label>
-          <select
-            value={order}
-            onChange={(e) => setOrder(e.target.value)}
-            className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none"
-          >
-            <option value="DESC">Descending</option>
-            <option value="ASC">Ascending</option>
-          </select>
+          <div>
+            <label className="text-gray-400 block mb-1">Order</label>
+            <select
+              value={order}
+              onChange={(e) => setOrder(e.target.value)}
+              className="w-full px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none text-xs"
+            >
+              <option value="DESC">Newest First</option>
+              <option value="ASC">Oldest First</option>
+            </select>
+          </div>
         </div>
       </div>
 
