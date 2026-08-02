@@ -21,12 +21,12 @@ export default function SplashScreen() {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white p-6 transition-opacity duration-500">
       <div className="flex flex-col items-center justify-center text-center space-y-6 max-w-sm animate-fade-in">
-        {/* CODTECH Official Logo */}
-        <div className="p-4 bg-white rounded-3xl shadow-xl border border-gray-100 flex items-center justify-center transform hover:scale-105 transition-transform">
+        {/* CODTECH Official Logo (Clean without box border or shadow) */}
+        <div className="flex items-center justify-center">
           <img
             src="/logo.png"
             alt="CODTECH Logo"
-            className="h-28 sm:h-36 w-auto object-contain"
+            className="h-32 sm:h-44 w-auto object-contain"
           />
         </div>
 

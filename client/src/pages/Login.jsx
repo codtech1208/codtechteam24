@@ -77,9 +77,7 @@ export default function Login() {
       <div className="w-full max-w-md bg-white rounded-3xl border border-gray-200 shadow-2xl p-8 z-10 animate-fade-in">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="p-3 bg-white rounded-2xl border border-gray-100 shadow-md inline-block mb-3">
-            <img src="/logo.png" alt="CODTECH Logo" className="h-16 w-auto object-contain mx-auto" />
-          </div>
+          <img src="/logo.png" alt="CODTECH Logo" className="h-16 w-auto object-contain mx-auto mb-3" />
           <h1 className="text-lg font-extrabold text-slate-900 tracking-wider uppercase">POWERED BY CODTECH TEAM</h1>
           <p className="text-[11px] font-bold uppercase tracking-widest text-brand-600 mt-1">Enterprise Internal System</p>
         </div>
