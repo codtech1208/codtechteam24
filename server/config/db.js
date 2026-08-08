@@ -200,6 +200,11 @@ async function initDatabase() {
     try { await dbRun("ALTER TABLE assignments ADD COLUMN payout_status VARCHAR(50) NOT NULL DEFAULT 'Unpaid'"); } catch (e) {}
     try { await dbRun("ALTER TABLE assignments ADD COLUMN payout_paid_at TIMESTAMP NULL"); } catch (e) {}
 
+    // Auto-sync payout_status for existing projects marked Paid
+    try {
+      await dbRun(`UPDATE assignments SET payout_status = 'Paid', payout_paid_at = CURRENT_TIMESTAMP WHERE (payout_status IS NULL OR payout_status = 'Unpaid') AND project_id IN (SELECT id FROM projects WHERE payment_status = 'Paid')`);
+    } catch (e) {}
+
     // Assignment History
     await dbRun(`
       CREATE TABLE IF NOT EXISTS assignment_history (

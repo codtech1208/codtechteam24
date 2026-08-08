@@ -318,7 +318,26 @@ router.patch('/:id/payment-status', requireAdmin, async (req, res) => {
     const recAmt = paymentStatus === 'Paid' ? Math.max(0, parseFloat(project.total_worth || 0) - parseFloat(project.advance_amount || 0)) : 0;
     await dbRun(`UPDATE projects SET payment_status = ?, received_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [paymentStatus, recAmt, id]);
 
-    return res.json({ message: `Project #${id} payment status updated to ${paymentStatus}` });
+    // Synchronize assignment payout_status so employee dashboard receives payout status update
+    if (paymentStatus === 'Paid') {
+      await dbRun(`UPDATE assignments SET payout_status = 'Paid', payout_paid_at = CURRENT_TIMESTAMP WHERE project_id = ?`, [id]);
+      
+      const assignment = await dbGet('SELECT * FROM assignments WHERE project_id = ?', [id]);
+      if (assignment) {
+        await createNotification({
+          userId: assignment.employee_id,
+          recipientRole: 'employee',
+          title: '💸 Developer Payout Received!',
+          message: `Your developer payout of ₹${Number(assignment.assigned_amount).toLocaleString('en-IN')} for project "${project.project_name}" has been marked as Paid by Admin.`,
+          type: 'payout',
+          projectId: id
+        });
+      }
+    } else {
+      await dbRun(`UPDATE assignments SET payout_status = 'Unpaid', payout_paid_at = NULL WHERE project_id = ?`, [id]);
+    }
+
+    return res.json({ message: `Project #${id} payment status and employee payout updated to ${paymentStatus}` });
   } catch (err) {
     console.error('Payment status update error:', err);
     return res.status(500).json({ error: 'Failed to update payment status.' });
