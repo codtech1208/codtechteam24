@@ -189,11 +189,16 @@ async function initDatabase() {
         project_id INT NOT NULL UNIQUE,
         employee_id INT NOT NULL,
         assigned_amount DOUBLE NOT NULL DEFAULT 0,
+        payout_status VARCHAR(50) NOT NULL DEFAULT 'Unpaid',
+        payout_paid_at TIMESTAMP NULL,
         remarks VARCHAR(255),
         assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         assigned_by INT
       );
     `);
+
+    try { await dbRun("ALTER TABLE assignments ADD COLUMN payout_status VARCHAR(50) NOT NULL DEFAULT 'Unpaid'"); } catch (e) {}
+    try { await dbRun("ALTER TABLE assignments ADD COLUMN payout_paid_at TIMESTAMP NULL"); } catch (e) {}
 
     // Assignment History
     await dbRun(`

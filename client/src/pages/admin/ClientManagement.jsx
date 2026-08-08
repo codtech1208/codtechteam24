@@ -535,8 +535,8 @@ export default function ClientManagement() {
               </label>
               <input
                 type="number"
-                min="1"
-                step="1"
+                min="0"
+                step="any"
                 required
                 value={newReceivedAmount}
                 onChange={(e) => setNewReceivedAmount(e.target.value)}
@@ -601,8 +601,8 @@ export default function ClientManagement() {
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Corrected Amount (₹) *</label>
               <input
                 type="number"
-                min="1"
-                step="1"
+                min="0"
+                step="any"
                 required
                 value={editTxAmount}
                 onChange={(e) => setEditTxAmount(e.target.value)}

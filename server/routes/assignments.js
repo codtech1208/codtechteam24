@@ -86,4 +86,78 @@ router.get('/history/:projectId', requireAdmin, async (req, res) => {
   }
 });
 
+// PATCH /api/assignments/:projectId/payout-status - Toggle or set employee payout status (Admin only)
+router.patch('/:projectId/payout-status', requireAdmin, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { payoutStatus } = req.body;
+
+    const newStatus = payoutStatus === 'Paid' ? 'Paid' : 'Unpaid';
+
+    const assignment = await dbGet(
+      `SELECT a.*, p.project_name, u.name as employee_name 
+       FROM assignments a
+       JOIN projects p ON a.project_id = p.id
+       JOIN users u ON a.employee_id = u.id
+       WHERE a.project_id = ?`,
+      [projectId]
+    );
+
+    if (!assignment) {
+      return res.status(404).json({ error: 'No assignment found for this project.' });
+    }
+
+    if (newStatus === 'Paid') {
+      await dbRun(
+        `UPDATE assignments SET payout_status = 'Paid', payout_paid_at = CURRENT_TIMESTAMP WHERE project_id = ?`,
+        [projectId]
+      );
+
+      // Audit log
+      await dbRun(
+        'INSERT INTO activity_logs (user_id, user_name, action, details) VALUES (?, ?, ?, ?)',
+        [
+          req.user.id,
+          req.user.name,
+          'Employee Payout Marked Paid',
+          `Marked payout of ₹${assignment.assigned_amount} as Paid for ${assignment.employee_name} on Project #${projectId} (${assignment.project_name})`
+        ]
+      );
+
+      // System notification to employee
+      await createNotification({
+        userId: assignment.employee_id,
+        recipientRole: 'employee',
+        title: '💸 Developer Payout Received!',
+        message: `Your developer payout of ₹${Number(assignment.assigned_amount).toLocaleString('en-IN')} for project "${assignment.project_name}" has been marked as Paid by Admin.`,
+        type: 'payout',
+        projectId: projectId
+      });
+    } else {
+      await dbRun(
+        `UPDATE assignments SET payout_status = 'Unpaid', payout_paid_at = NULL WHERE project_id = ?`,
+        [projectId]
+      );
+
+      await dbRun(
+        'INSERT INTO activity_logs (user_id, user_name, action, details) VALUES (?, ?, ?, ?)',
+        [
+          req.user.id,
+          req.user.name,
+          'Employee Payout Marked Unpaid',
+          `Marked payout of ₹${assignment.assigned_amount} as Unpaid for ${assignment.employee_name} on Project #${projectId} (${assignment.project_name})`
+        ]
+      );
+    }
+
+    return res.json({
+      message: `Employee payout marked as ${newStatus}`,
+      payoutStatus: newStatus
+    });
+  } catch (err) {
+    console.error('Update payout status error:', err);
+    return res.status(500).json({ error: 'Failed to update employee payout status.' });
+  }
+});
+
 module.exports = router;

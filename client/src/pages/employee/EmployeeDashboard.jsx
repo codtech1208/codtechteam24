@@ -23,7 +23,10 @@ import {
   Eye,
   FileText,
   User,
-  ExternalLink
+  ExternalLink,
+  Wallet,
+  IndianRupee,
+  ArrowUpRight
 } from 'lucide-react';
 
 export default function EmployeeDashboard() {
@@ -35,6 +38,7 @@ export default function EmployeeDashboard() {
   // Credential & Completion Modal state
   const [credModalOpen, setCredModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [receivedBreakdownModalOpen, setReceivedBreakdownModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -143,7 +147,7 @@ export default function EmployeeDashboard() {
   }
 
   const { metrics, projects } = data;
-  const paidProjects = projects.filter((p) => p.payment_status === 'Paid');
+  const paidProjects = projects.filter((p) => p.payout_status === 'Paid');
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto animate-fade-in">
@@ -212,14 +216,26 @@ export default function EmployeeDashboard() {
               icon={CheckCircle}
               color="green"
             />
+            <button
+              onClick={() => setReceivedBreakdownModalOpen(true)}
+              className="p-4 bg-emerald-50 hover:bg-emerald-100/80 border-2 border-emerald-300 rounded-2xl text-left transition-all cursor-pointer group shadow-sm flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between w-full">
+                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Received Payout (Paid)</span>
+                <div className="p-2 bg-emerald-500 text-white rounded-xl shadow-xs group-hover:scale-105 transition-transform">
+                  <Wallet className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xl sm:text-2xl font-black text-emerald-800">{formatCurrency(metrics.receivedPayout || 0)}</span>
+                  <ArrowUpRight className="w-4 h-4 text-emerald-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </div>
+                <span className="text-[11px] font-bold text-emerald-600 block mt-0.5">Click to view project breakdown</span>
+              </div>
+            </button>
             <StatsCard
-              title="Ongoing"
-              value={metrics.ongoingProjects}
-              icon={Clock}
-              color="amber"
-            />
-            <StatsCard
-              title="Total Payout"
+              title="Total Assigned Payout"
               value={formatCurrency(metrics.totalAssignedPayment)}
               icon={DollarSign}
               color="purple"
@@ -279,13 +295,13 @@ export default function EmployeeDashboard() {
                       <td className="px-2 sm:px-4 py-3 text-[10px] sm:text-xs font-semibold text-slate-700 whitespace-nowrap">{p.project_type}</td>
                       <td className="px-2 sm:px-4 py-3 text-[10px] sm:text-xs font-bold text-brand-600 whitespace-nowrap">{formatCurrency(p.assigned_amount)}</td>
                       <td className="px-2 sm:px-4 py-3">
-                        {isPaid ? (
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 whitespace-nowrap">
-                            <Check className="w-3 h-3" /> PAID
+                        {p.payout_status === 'Paid' ? (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 whitespace-nowrap shadow-2xs">
+                            <Check className="w-3 h-3" /> Payout Paid
                           </span>
                         ) : (
                           <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 whitespace-nowrap">
-                            <Clock className="w-3 h-3" /> Pending
+                            <Clock className="w-3 h-3" /> Unpaid
                           </span>
                         )}
                       </td>
@@ -662,6 +678,64 @@ export default function EmployeeDashboard() {
               </button>
             </div>
           </form>
+        </Modal>
+      )}
+      {/* Modal: Employee Received Payout Breakdown */}
+      {receivedBreakdownModalOpen && (
+        <Modal
+          isOpen={receivedBreakdownModalOpen}
+          onClose={() => setReceivedBreakdownModalOpen(false)}
+          title="My Received Payouts Breakdown"
+          maxWidth="max-w-2xl"
+        >
+          <div className="space-y-4">
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl shadow-lg flex items-center justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-wider font-bold opacity-90 block">Total Received Payout</span>
+                <h3 className="text-2xl sm:text-3xl font-black mt-0.5">{formatCurrency(metrics.receivedPayout || 0)}</h3>
+                <p className="text-xs text-emerald-100 mt-1">Confirmed & Paid by Admin</p>
+              </div>
+              <Wallet className="w-12 h-12 opacity-80" />
+            </div>
+
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Paid Projects Breakdown ({paidProjects.length})
+            </h4>
+
+            {paidProjects.length === 0 ? (
+              <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                <IndianRupee className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-xs text-gray-500 font-medium">No paid payouts recorded yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                {paidProjects.map((p) => (
+                  <div key={p.id} className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-xs">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h5 className="font-bold text-slate-900 text-sm">{p.project_name || `${p.client_name} Project`}</h5>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadge(p.status)}`}>
+                          {p.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Client: <span className="font-semibold text-slate-800">{p.client_name}</span> ({p.project_type})
+                      </p>
+                      {p.payout_paid_at && (
+                        <p className="text-[11px] text-emerald-700 font-semibold mt-1 flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5" /> Paid On: {formatDate(p.payout_paid_at)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-left sm:text-right bg-white px-3.5 py-2 rounded-xl border border-emerald-200 shadow-2xs">
+                      <span className="text-[10px] text-emerald-800 font-bold uppercase block">Payout Received</span>
+                      <span className="text-lg font-black text-emerald-700">{formatCurrency(p.assigned_amount || 0)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </Modal>
       )}
     </div>

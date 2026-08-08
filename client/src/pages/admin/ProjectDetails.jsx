@@ -69,6 +69,18 @@ export default function ProjectDetails() {
     }
   };
 
+  const handleTogglePayoutStatus = async () => {
+    if (!data.assignment) return;
+    const newStatus = data.assignment.payout_status === 'Paid' ? 'Unpaid' : 'Paid';
+    try {
+      await api.patch(`/assignments/${id}/payout-status`, { payoutStatus: newStatus });
+      setToast({ message: `Employee payout marked as ${newStatus}`, type: 'success' });
+      fetchProjectDetails();
+    } catch (err) {
+      setToast({ message: err.response?.data?.error || 'Failed to update payout status', type: 'error' });
+    }
+  };
+
   const handleOpenReassign = async () => {
     try {
       const res = await api.get('/employees?status=active');
@@ -247,9 +259,26 @@ export default function ProjectDetails() {
                   <p className="text-xs text-gray-500">{assignment.employee_email} | ID: {assignment.employee_code}</p>
                   {assignment.remarks && <p className="text-xs text-slate-600 italic mt-2">"{assignment.remarks}"</p>}
                 </div>
-                <div className="text-right">
-                  <span className="text-xs text-gray-400 block">Assigned Payout</span>
+                <div className="text-right flex flex-col items-end gap-1.5">
+                  <span className="text-xs text-gray-400 block">Assigned Developer Payout</span>
                   <span className="text-xl font-bold text-brand-600">{formatCurrency(assignment.assigned_amount)}</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full ${assignment.payout_status === 'Paid' ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-amber-100 text-amber-700 border border-amber-300'}`}>
+                      Payout: {assignment.payout_status || 'Unpaid'}
+                    </span>
+                    {user.role === 'super_admin' && (
+                      <button
+                        onClick={handleTogglePayoutStatus}
+                        className={`px-3 py-1 text-xs font-bold rounded-xl shadow-xs transition-all ${
+                          assignment.payout_status === 'Paid'
+                            ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+                        }`}
+                      >
+                        {assignment.payout_status === 'Paid' ? 'Mark Unpaid' : 'Mark Payout Paid ✓'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (
@@ -543,6 +572,7 @@ export default function ProjectDetails() {
               type="number"
               required
               min="0"
+              step="any"
               value={reassignForm.assignedAmount}
               onChange={(e) => setReassignForm({ ...reassignForm, assignedAmount: e.target.value })}
               placeholder="15000"

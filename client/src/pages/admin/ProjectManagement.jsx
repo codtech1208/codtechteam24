@@ -568,6 +568,7 @@ export default function ProjectManagement() {
                   <input
                     type="number"
                     min="0"
+                    step="any"
                     value={formData.webCost}
                     onChange={(e) => handleWebCostChange(e.target.value)}
                     placeholder={`e.g. 15000 for ${formData.webType}`}
@@ -586,6 +587,7 @@ export default function ProjectManagement() {
                   <input
                     type="number"
                     min="0"
+                    step="any"
                     value={formData.appCost}
                     onChange={(e) => handleAppCostChange(e.target.value)}
                     placeholder={`e.g. 20000 for ${formData.appType}`}
@@ -612,6 +614,7 @@ export default function ProjectManagement() {
                   type="number"
                   required
                   min="0"
+                  step="any"
                   value={formData.employeePayout}
                   onChange={(e) => setFormData({ ...formData, employeePayout: e.target.value })}
                   placeholder="Enter manual amount e.g. 12000"
@@ -628,7 +631,7 @@ export default function ProjectManagement() {
                   type="number"
                   required
                   min="0"
-                  step="500"
+                  step="any"
                   value={formData.totalWorth}
                   onChange={(e) => setFormData({ ...formData, totalWorth: e.target.value })}
                   placeholder="50000"

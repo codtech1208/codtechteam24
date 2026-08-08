@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
       SELECT p.id, p.project_name, p.project_type, ${selectTotalWorth}, p.advance_amount, p.received_amount, p.status, COALESCE(p.payment_status, 'Unpaid') as payment_status, p.created_at, p.updated_at,
              c.id as client_id, c.name as client_name, c.email as client_email, c.mobile as client_mobile,
              u.id as assigned_employee_id, u.name as assigned_employee_name, u.employee_id as assigned_employee_code,
-             a.assigned_amount, a.assigned_at, a.remarks as assignment_remarks,
+             a.assigned_amount, COALESCE(a.payout_status, 'Unpaid') as payout_status, a.payout_paid_at, a.assigned_at, a.remarks as assignment_remarks,
              (SELECT COUNT(*) FROM project_credentials pc WHERE pc.project_id = p.id) as has_credentials
       FROM projects p
       JOIN clients c ON p.client_id = c.id

@@ -4,7 +4,7 @@ import DataTable from '../../components/common/DataTable';
 import Modal from '../../components/common/Modal';
 import Toast from '../../components/common/Toast';
 import { formatCurrency, formatDate, getStatusBadge } from '../../utils/formatters';
-import { UserPlus, UserCheck, UserX, Trash2, Edit, Eye, Briefcase, Mail, Phone, Calendar, User, IndianRupee, FileText } from 'lucide-react';
+import { UserPlus, UserCheck, UserX, Trash2, Edit, Eye, Briefcase, Mail, Phone, Calendar, User, IndianRupee, FileText, CheckCircle, Clock, DollarSign, Wallet, ArrowUpRight } from 'lucide-react';
 
 export default function EmployeeManagement() {
   const [employees, setEmployees] = useState([]);
@@ -14,8 +14,24 @@ export default function EmployeeManagement() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [receivedBreakdownModalOpen, setReceivedBreakdownModalOpen] = useState(false);
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [empProfileData, setEmpProfileData] = useState(null);
+
+  const handleTogglePayoutStatus = async (projectId, currentStatus) => {
+    const newStatus = currentStatus === 'Paid' ? 'Unpaid' : 'Paid';
+    try {
+      await api.patch(`/assignments/${projectId}/payout-status`, { payoutStatus: newStatus });
+      setToast({ message: `Employee payout marked as ${newStatus}`, type: 'success' });
+      if (selectedEmp) {
+        const res = await api.get(`/employees/${selectedEmp.id}`);
+        setEmpProfileData(res.data);
+      }
+      fetchEmployees();
+    } catch (err) {
+      setToast({ message: err.response?.data?.error || 'Failed to update payout status', type: 'error' });
+    }
+  };
 
   const [formData, setFormData] = useState({
     name: '',
@@ -156,8 +172,13 @@ export default function EmployeeManagement() {
       )
     },
     {
-      header: 'Assigned Payout',
-      render: (row) => <span className="font-semibold text-brand-600">{formatCurrency(row.stats?.totalAssignedAmount)}</span>
+      header: 'Assigned / Received Payout',
+      render: (row) => (
+        <div className="text-xs">
+          <p className="font-bold text-brand-600">Assigned: {formatCurrency(row.stats?.totalAssignedAmount || 0)}</p>
+          <p className="font-semibold text-emerald-600">Received: {formatCurrency(row.stats?.totalReceivedAmount || 0)}</p>
+        </div>
+      )
     },
     {
       header: 'Status',
@@ -373,13 +394,20 @@ export default function EmployeeManagement() {
                 <span className="text-gray-400 block font-semibold">Total Assigned</span>
                 <span className="text-base font-bold text-slate-900">{empProfileData.stats?.assignedProjects || 0}</span>
               </div>
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-center">
-                <span className="text-emerald-600 block font-semibold">Completed</span>
-                <span className="text-base font-bold text-emerald-700">{empProfileData.stats?.completedProjects || 0}</span>
-              </div>
+              <button
+                onClick={() => setReceivedBreakdownModalOpen(true)}
+                className="p-3 bg-emerald-50 hover:bg-emerald-100/80 rounded-xl border border-emerald-200 text-center transition-all cursor-pointer group shadow-xs"
+              >
+                <div className="flex items-center justify-center gap-1 text-emerald-700 font-bold">
+                  <span>Received (Paid)</span>
+                  <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </div>
+                <span className="text-base font-black text-emerald-700">{formatCurrency(empProfileData.stats?.totalReceivedAmount || 0)}</span>
+                <span className="block text-[10px] text-emerald-600 font-medium">Click to view breakdown</span>
+              </button>
               <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-center">
-                <span className="text-amber-600 block font-semibold">Ongoing</span>
-                <span className="text-base font-bold text-amber-700">{empProfileData.stats?.ongoingProjects || 0}</span>
+                <span className="text-amber-600 block font-semibold">Pending Payout</span>
+                <span className="text-base font-bold text-amber-700">{formatCurrency(empProfileData.stats?.totalPendingAmount || 0)}</span>
               </div>
               <div className="p-3 bg-brand-50 rounded-xl border border-brand-100 text-center">
                 <span className="text-brand-600 block font-semibold">Total Payout</span>
@@ -421,9 +449,24 @@ export default function EmployeeManagement() {
                             Project Type: <span className="font-semibold text-slate-700">{p.project_type}</span>
                           </p>
                         </div>
-                        <div className="text-left sm:text-right">
+                        <div className="text-left sm:text-right space-y-1">
                           <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Assigned Developer Payout</p>
                           <p className="text-base font-extrabold text-brand-600">{formatCurrency(p.assigned_amount || 0)}</p>
+                          <div className="flex items-center justify-end gap-2">
+                            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${p.payout_status === 'Paid' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-amber-100 text-amber-700 border-amber-300'}`}>
+                              Payout: {p.payout_status || 'Unpaid'}
+                            </span>
+                            <button
+                              onClick={() => handleTogglePayoutStatus(p.id, p.payout_status)}
+                              className={`px-2.5 py-1 text-xs font-bold rounded-lg shadow-xs transition-all ${
+                                p.payout_status === 'Paid'
+                                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
+                                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+                              }`}
+                            >
+                              {p.payout_status === 'Paid' ? 'Mark Unpaid' : 'Mark Payout Paid ✓'}
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -467,6 +510,66 @@ export default function EmployeeManagement() {
                 </div>
               )}
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal: Employee Received Payout Breakdown */}
+      {receivedBreakdownModalOpen && empProfileData && (
+        <Modal
+          isOpen={receivedBreakdownModalOpen}
+          onClose={() => setReceivedBreakdownModalOpen(false)}
+          title={`Received Payout Breakdown (${empProfileData.employee?.name})`}
+          maxWidth="max-w-2xl"
+        >
+          <div className="space-y-4">
+            <div className="p-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl shadow-md flex items-center justify-between">
+              <div>
+                <span className="text-xs uppercase tracking-wider font-bold opacity-90 block">Total Received Payout</span>
+                <h3 className="text-2xl font-black">{formatCurrency(empProfileData.stats?.totalReceivedAmount || 0)}</h3>
+              </div>
+              <Wallet className="w-10 h-10 opacity-80" />
+            </div>
+
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Paid Projects Breakdown ({empProfileData.projects?.filter((p) => p.payout_status === 'Paid').length || 0})
+            </h4>
+
+            {(!empProfileData.projects || empProfileData.projects.filter((p) => p.payout_status === 'Paid').length === 0) ? (
+              <div className="p-8 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                <IndianRupee className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-xs text-gray-500 font-medium">No paid payouts recorded for this employee yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                {empProfileData.projects
+                  .filter((p) => p.payout_status === 'Paid')
+                  .map((p) => (
+                    <div key={p.id} className="p-4 bg-emerald-50/50 border border-emerald-200 rounded-xl flex items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h5 className="font-bold text-slate-900 text-sm">{p.project_name || `Project #${p.id}`}</h5>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadge(p.status)}`}>
+                            {p.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          Client: <span className="font-semibold text-slate-800">{p.client_name}</span> ({p.project_type})
+                        </p>
+                        {p.payout_paid_at && (
+                          <p className="text-[11px] text-emerald-700 font-medium mt-1">
+                            Paid On: {formatDate(p.payout_paid_at)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs text-emerald-800 block font-semibold">Received Payout</span>
+                        <span className="text-lg font-black text-emerald-700">{formatCurrency(p.assigned_amount || 0)}</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </Modal>
       )}

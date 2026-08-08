@@ -32,14 +32,16 @@ router.get('/', requireAdmin, async (req, res) => {
     // Attach stats for each employee
     const enriched = await Promise.all(
       employees.map(async (emp) => {
-        let stats = { total_assigned: 0, completed: 0, ongoing: 0, total_amount: 0 };
+        let stats = { total_assigned: 0, completed: 0, ongoing: 0, total_amount: 0, received_amount: 0, pending_amount: 0 };
         try {
           stats = await dbGet(
             `SELECT 
               COUNT(a.id) as total_assigned,
               SUM(CASE WHEN p.status = 'Completed' THEN 1 ELSE 0 END) as completed,
               SUM(CASE WHEN p.status = 'Ongoing' THEN 1 ELSE 0 END) as ongoing,
-              COALESCE(SUM(a.assigned_amount), 0) as total_amount
+              COALESCE(SUM(a.assigned_amount), 0) as total_amount,
+              COALESCE(SUM(CASE WHEN a.payout_status = 'Paid' THEN a.assigned_amount ELSE 0 END), 0) as received_amount,
+              COALESCE(SUM(CASE WHEN COALESCE(a.payout_status, 'Unpaid') != 'Paid' THEN a.assigned_amount ELSE 0 END), 0) as pending_amount
             FROM assignments a
             JOIN projects p ON a.project_id = p.id
             WHERE a.employee_id = ?`,
@@ -54,7 +56,9 @@ router.get('/', requireAdmin, async (req, res) => {
             assignedProjects: stats?.total_assigned || 0,
             completedProjects: stats?.completed || 0,
             ongoingProjects: stats?.ongoing || 0,
-            totalAssignedAmount: stats?.total_amount || 0
+            totalAssignedAmount: stats?.total_amount || 0,
+            totalReceivedAmount: stats?.received_amount || 0,
+            totalPendingAmount: stats?.pending_amount || 0
           }
         };
       })
@@ -83,7 +87,7 @@ router.get('/:id', requireAdmin, async (req, res) => {
     const projects = await dbAll(
       `SELECT p.id, p.project_name, p.project_type, p.total_worth, p.status, COALESCE(p.payment_status, 'Unpaid') as payment_status, p.created_at,
               c.name as client_name, c.email as client_email, c.mobile as client_mobile,
-              a.assigned_amount, a.remarks as assignment_remarks, a.assigned_at
+              a.assigned_amount, COALESCE(a.payout_status, 'Unpaid') as payout_status, a.payout_paid_at, a.remarks as assignment_remarks, a.assigned_at
        FROM assignments a
        JOIN projects p ON a.project_id = p.id
        JOIN clients c ON p.client_id = c.id
@@ -97,7 +101,9 @@ router.get('/:id', requireAdmin, async (req, res) => {
         COUNT(a.id) as total_assigned,
         SUM(CASE WHEN p.status = 'Completed' THEN 1 ELSE 0 END) as completed,
         SUM(CASE WHEN p.status = 'Ongoing' THEN 1 ELSE 0 END) as ongoing,
-        COALESCE(SUM(a.assigned_amount), 0) as total_amount
+        COALESCE(SUM(a.assigned_amount), 0) as total_amount,
+        COALESCE(SUM(CASE WHEN a.payout_status = 'Paid' THEN a.assigned_amount ELSE 0 END), 0) as received_amount,
+        COALESCE(SUM(CASE WHEN COALESCE(a.payout_status, 'Unpaid') != 'Paid' THEN a.assigned_amount ELSE 0 END), 0) as pending_amount
       FROM assignments a
       JOIN projects p ON a.project_id = p.id
       WHERE a.employee_id = ?`,
@@ -111,7 +117,9 @@ router.get('/:id', requireAdmin, async (req, res) => {
         assignedProjects: stats?.total_assigned || 0,
         completedProjects: stats?.completed || 0,
         ongoingProjects: stats?.ongoing || 0,
-        totalAssignedAmount: stats?.total_amount || 0
+        totalAssignedAmount: stats?.total_amount || 0,
+        totalReceivedAmount: stats?.received_amount || 0,
+        totalPendingAmount: stats?.pending_amount || 0
       }
     });
   } catch (err) {
